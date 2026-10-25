@@ -10,7 +10,7 @@ import { useClock } from '../../data/clock';
 import { setDayStatus } from '../../data/actions';
 import { navigate, useQuery } from '../../app/router';
 import { Button, Chip, IconButton, ScreenHeader, Segmented, Sheet } from '../../ui/kit';
-import { Icon } from '../../ui/Icon';
+import { Icon, type IconName } from '../../ui/Icon';
 import { dayLabel, KIND_LABEL, longDate, MONTHS, plural, STATUS_LABEL, WD_SHORT } from '../../ui/format';
 import { EventSheet, RoutineBlockSheet, useConflictFollowUp, type EventDraft } from './EventSheet';
 import { ProposalSheet } from './ProposalSheet';
@@ -80,6 +80,7 @@ export function PlanScreen() {
         </button>
       )}
 
+      {view === 'day' && <WeekStrip date={date} onPick={setDate} />}
       {view === 'day' && <DayView date={date} onSlot={(start) => setDraft({ date, start_min: start, end_min: start + 90 })} onEvent={(e) => setDraft({ id: e.id, date: e.date, start_min: e.start_min, end_min: e.end_min })} onRoutine={setRoutineBlock} onStatus={() => setStatusOpen(true)} />}
       {view === 'week' && <WeekView date={date} onDay={(d) => { setDate(d); setView('day'); }} />}
       {view === 'month' && <MonthView date={date} onDay={(d) => { setDate(d); setView('day'); }} />}
@@ -108,6 +109,30 @@ export function PlanScreen() {
 }
 
 const PPM = 0.8; // px per minute
+
+export const KIND_ICON: Record<string, IconName> = {
+  work: 'clock', commute: 'route', music: 'music', training: 'target', reading: 'book', promo: 'megaphone',
+  private: 'user', relationship: 'heart', sport: 'bolt', rest: 'moon', other: 'more',
+};
+
+function WeekStrip({ date, onPick }: { date: string; onPick: (d: string) => void }) {
+  const clock = useClock();
+  const snap = useStore((s) => s.snap);
+  return (
+    <div className="weekstrip" role="tablist" aria-label="Dni tygodnia">
+      {weekDates(date).map((d) => {
+        const dev = snap.events.some((e) => e.date === d && COMMITMENT_KINDS.includes(e.kind) && !['cancelled', 'moved'].includes(e.status));
+        return (
+          <button key={d} role="tab" aria-selected={d === date} className={`weekstrip__d${d === date ? ' is-on' : ''}${d === clock.today ? ' is-today' : ''}`} onClick={() => onPick(d)}>
+            <span className="weekstrip__wd">{WD_SHORT[weekday(d)]}</span>
+            <span className="weekstrip__n num">{parseDate(d).d}</span>
+            <span className={`weekstrip__dot${dev ? ' is-on' : ''}`} />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function laneLayout<T extends { start: number; end: number }>(items: T[]): (T & { lane: number; lanes: number })[] {
   const sorted = [...items].sort((a, b) => a.start - b.start || b.end - a.end);
@@ -183,8 +208,11 @@ function DayView({ date, onSlot, onEvent, onRoutine, onStatus }: { date: string;
             <button key={it.key} className={`tblock tblock--${it.variant}${it.status && it.status !== 'planned' ? ` is-${it.status}` : ''}`}
               style={{ top: (it.start - from) * PPM + 1, height: h, left: `calc(52px + (100% - 56px) * ${it.lane / it.lanes})`, width: `calc((100% - 56px) / ${it.lanes} - 4px)`, '--k': `var(--k-${it.kind})` } as React.CSSProperties}
               onClick={it.onClick}>
-              <span className="tblock__title">{it.title}</span>
-              {h > 40 && <span className="tblock__sub num">{it.sub}</span>}
+              {h > 44 && <span className="tblock__icon"><Icon name={KIND_ICON[it.kind] ?? 'more'} size={16} /></span>}
+              <span className="tblock__text">
+                <span className="tblock__title">{it.title}</span>
+                {h > 40 && <span className="tblock__sub num">{it.sub}</span>}
+              </span>
             </button>
           );
         })}

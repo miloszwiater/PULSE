@@ -6,7 +6,7 @@ import { checkIn } from '../data/actions';
 import { useStore } from '../data/store';
 import { clockNow, useClock } from '../data/clock';
 import { Button, Chip, Field, Sheet } from '../ui/kit';
-import type { IconName } from '../ui/Icon';
+import { Icon, type IconName } from '../ui/Icon';
 import { ProposalSheet } from './plan/ProposalSheet';
 
 export const SIGNALS: { value: CareSignal; label: string; icon: IconName; tone: 'ok' | 'blue' | 'danger' | 'warn' }[] = [
@@ -24,7 +24,7 @@ const RESPONSE: Record<CareSignal, string> = {
 };
 
 /** Quick energy check-in. Reacts by checking the plan and offering adjustments (never forced). */
-export function CheckIn({ compact }: { compact?: boolean }) {
+export function CheckIn({ compact, tiles }: { compact?: boolean; tiles?: boolean }) {
   const clock = useClock();
   const snap = useStore((s) => s.snap);
   const today = effectiveStatus(snap, clock.today);
@@ -51,11 +51,21 @@ export function CheckIn({ compact }: { compact?: boolean }) {
 
   return (
     <div className={`checkin${compact ? ' checkin--compact' : ''}`}>
-      <div className="checkin__chips" role="group" aria-label="Jak się dziś czujesz?">
-        {SIGNALS.map((s) => (
-          <Chip key={s.value} icon={s.icon} tone={s.tone} on={current === s.value} onClick={() => pick(s.value)}>{s.label}</Chip>
-        ))}
-      </div>
+      {tiles ? (
+        <div className="sigtiles" role="group" aria-label="Jak się dziś czujesz?">
+          {SIGNALS.map((s) => (
+            <button key={s.value} className={`sigtile sigtile--${s.tone}${current === s.value ? ' is-on' : ''}`} aria-pressed={current === s.value} onClick={() => pick(s.value)}>
+              <Icon name={s.icon} size={20} /><span>{s.label}</span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="checkin__chips" role="group" aria-label="Jak się dziś czujesz?">
+          {SIGNALS.map((s) => (
+            <Chip key={s.value} icon={s.icon} tone={s.tone} on={current === s.value} onClick={() => pick(s.value)}>{s.label}</Chip>
+          ))}
+        </div>
+      )}
       {message && <p className="checkin__msg" role="status">{message}</p>}
 
       <Sheet open={sickOpen} onClose={() => setSickOpen(false)} title="Zgłoś chorobę"

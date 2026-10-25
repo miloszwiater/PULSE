@@ -42,10 +42,20 @@ export function PromotionScreen() {
   const open = tasks.filter((t) => t.status === 'todo' || t.status === 'doing').sort((a, b) => (a.due_date ?? '9').localeCompare(b.due_date ?? '9'));
   const closed = tasks.filter((t) => t.status === 'done' || t.status === 'skipped').sort((a, b) => (b.done_at ?? b.updated_at) - (a.done_at ?? a.updated_at));
   const releaseProjects = snap.projects.filter((p) => p.release_date && !p.archived);
+  const available = PROMO_LESSONS.filter((l) => STAGE_ORDER.indexOf(l.min_stage) <= stageIdx);
+  const doneAvailable = available.filter((l) => doneKeys.has(l.key)).length;
 
   return (
     <div className="screen">
-      <ScreenHeader title="Promotion Academy" onBack sub={`Twój etap: ${ARTIST_STAGE[stage].toLowerCase()}. Promocja rośnie razem z katalogiem — bez wymogu codziennego publikowania.`} />
+      <ScreenHeader title="Promotion Academy" onBack sub="Promocja rośnie razem z katalogiem — bez wymogu codziennego publikowania." />
+      <div className="stagecard">
+        <div className="stagecard__text">
+          <p className="stagecard__k">Aktualny etap</p>
+          <p className="stagecard__t">{ARTIST_STAGE[stage]}</p>
+          <p className="dim xs">{available.length ? `${doneAvailable} z ${available.length} lekcji na tym etapie zamienione w wykonane zadania.` : 'Brak lekcji na tym etapie.'}</p>
+        </div>
+        <BigRing pct={available.length ? Math.round((doneAvailable / available.length) * 100) : 0} />
+      </div>
       <Segmented label="Widok" value={tab} onChange={setTab} options={[{ value: 'program', label: 'Program' }, { value: 'tasks', label: `Zadania${open.length ? ` ${open.length}` : ''}` }]} />
 
       {tab === 'program' && PROMO_MODULES.map((m) => (
@@ -55,7 +65,7 @@ export function PromotionScreen() {
               const later = STAGE_ORDER.indexOf(l.min_stage) > stageIdx;
               return (
                 <button key={l.key} className={`row row--action${later ? ' is-later' : ''}`} onClick={() => setLesson(l)}>
-                  <span className="row__lead">{doneKeys.has(l.key) ? <Icon name="check" size={18} style={{ color: 'var(--ok)' }} /> : <Icon name="megaphone" size={18} />}</span>
+                  <span className={`lead-tile${doneKeys.has(l.key) ? ' is-done' : ''}`}>{doneKeys.has(l.key) ? <Icon name="check" size={18} /> : <Icon name="megaphone" size={18} />}</span>
                   <span className="row__main">
                     <span className="row__title">{l.title}</span>
                     <span className="row__sub">{l.channel}{later ? ' · na później, gdy będzie gotowy materiał' : ''}</span>
@@ -170,5 +180,16 @@ function ReleasePlanSheet({ projectId, onClose }: { projectId: string; onClose: 
       {tooLate.length > 0 && <div className="callout callout--warn"><Icon name="info" size={18} /><span>{tooLate.length} zadań ma termin w przeszłości — dostaną dzisiejszą datę. Zgłoszenie do playlist wymaga zwykle kilku tygodni wyprzedzenia; rozważ przesunięcie premiery.</span></div>}
       <ul className="changes">{items.map((i) => <li key={i.title} className="changes__item"><Icon name="calendar" size={16} /><span><strong className="num">{shortDate(i.date)}</strong> · {i.title}</span></li>)}</ul>
     </Sheet>
+  );
+}
+
+function BigRing({ pct }: { pct: number }) {
+  const r = 30;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className="bigring" role="img" aria-label={`${pct}%`}>
+      <svg viewBox="0 0 72 72"><circle cx="36" cy="36" r={r} className="ring__track" /><circle cx="36" cy="36" r={r} className="ring__val" strokeDasharray={c} strokeDashoffset={c * (1 - pct / 100)} /></svg>
+      <span className="num">{pct}%</span>
+    </div>
   );
 }

@@ -42,6 +42,23 @@ export function CareerScreen() {
         <Icon name="chevron" size={18} />
       </button>
 
+      <Section title="Roczna mapa rozwoju">
+        <div className="quarters">
+          {rm.phases.map((p) => {
+            const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
+            return (
+              <button key={p.n} className={`quarter${p.n === rm.actualPhase ? ' is-current' : ''}`} onClick={() => navigate('/kariera/roadmapa')}>
+                <span className="quarter__q">Q{p.n}</span>
+                <span className="quarter__text"><span className="quarter__title">{p.title}</span><span className="quarter__sub">{p.focus}</span></span>
+                <span className={`quarter__pct num${pct === 100 ? ' is-done' : ''}`}>{pct}%</span>
+                <Icon name="chevron" size={16} />
+              </button>
+            );
+          })}
+        </div>
+        <p className="dim xs" style={{ marginTop: 8 }}>Procent = osiągnięte kamienie milowe fazy, potwierdzone danymi lub przez Ciebie.</p>
+      </Section>
+
       <Section title="Cele" aside={<button className="btn btn--quiet" onClick={() => navigate('/kariera/cele')}>Wszystkie</button>}>
         {goals.length ? (
           <div className="list">

@@ -10,6 +10,7 @@ import { putRow, startSession } from '../../data/actions';
 import { navigate, useQuery } from '../../app/router';
 import { Button, Confirm, Empty, Field, Row, ScreenHeader, Section, Segmented, Sheet } from '../../ui/kit';
 import { Icon } from '../../ui/Icon';
+import { Cover } from '../../ui/Cover';
 import { dayLabel, OUTCOME_LABEL, STAGE_LABEL } from '../../ui/format';
 import { toast } from '../../ui/toast';
 
@@ -30,7 +31,7 @@ export function ProjectsScreen() {
         {list.length ? (
           <div className="list">
             {list.map((p) => (
-              <Row key={p.id} leading={<StageMark stage={p.stage} />} title={p.title}
+              <Row key={p.id} leading={<Cover seed={p.id} size={56} />} title={<>{p.title}<StageBar stage={p.stage} /></>}
                 sub={`${STAGE_LABEL[p.stage]}${p.working_title && p.working_title !== p.title ? ` · „${p.working_title}”` : ''}${p.last_worked_at ? ` · ${dayLabel(new Date(p.last_worked_at).toISOString().slice(0, 10), clock.today).toLowerCase()}` : ''}`}
                 onClick={() => navigate(`/projekty/${p.id}`)} />
             ))}
@@ -44,6 +45,12 @@ export function ProjectsScreen() {
       <NewProjectSheet open={newOpen} onClose={() => setNewOpen(false)} />
     </div>
   );
+}
+
+/** Progress along the release path, from idea to released. */
+export function StageBar({ stage }: { stage: ProjectStage }) {
+  const i = PROJECT_STAGES.indexOf(stage);
+  return <span className="stagebar" aria-label={`Etap ${i + 1} z ${PROJECT_STAGES.length}`}><span style={{ width: `${((i + 1) / PROJECT_STAGES.length) * 100}%` }} /></span>;
 }
 
 export function StageMark({ stage }: { stage: ProjectStage }) {
@@ -104,7 +111,8 @@ export function ProjectScreen({ id }: { id: string }) {
 
   return (
     <div className="screen">
-      <ScreenHeader title={draft.title || 'Bez tytułu'} onBack sub={`${sessions.length} sesji · ${durationLabel(minutes)}`} />
+      <ScreenHeader title={draft.title || 'Bez tytułu'} onBack />
+      <div className="projhead"><Cover seed={p.id} size={96} radius={20} /><div><p className="muted small">{STAGE_LABEL[draft.stage]}</p><p className="num">{sessions.length} sesji · {durationLabel(minutes)}</p><StageBar stage={draft.stage} /></div></div>
       <Button variant="primary" block icon="play" onClick={() => { startSession({ project_id: p.id, title: `Praca nad: ${p.title}`, type: 'create' }); navigate('/sesja'); }}>Sesja nad tym utworem</Button>
 
       <Section title="Etap">

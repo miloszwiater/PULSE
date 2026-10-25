@@ -6,6 +6,8 @@ import { insights } from '../../../shared/domain/insights';
 import { CATEGORY_LABEL } from '../../../shared/catalog/exercises';
 import { addDays, daysBetween, durationLabel, monthStart, daysInMonth, weekStart, mergeIntervals } from '../../../shared/time';
 import { useStore } from '../../data/store';
+import { Icon, type IconName } from '../../ui/Icon';
+import { categoryOfSession, countsAsSession, sessionDate } from '../../../shared/domain/sessions';
 import { useClock } from '../../data/clock';
 import { navigate } from '../../app/router';
 import { Button, IconButton, ScreenHeader, Section, Segmented } from '../../ui/kit';
@@ -31,6 +33,13 @@ export function StatsScreen() {
     return { from: start, to: clock.today };
   }, [period, offset, clock.today, start]);
   const r = useMemo(() => rangeStats(snap, range.from, range.to, clock.today), [snap, range, clock.today]);
+  const prev = useMemo(() => {
+    if (period !== 'week' && period !== 'month') return null;
+    const pf = period === 'week' ? addDays(range.from, -7) : addDays(range.from, -daysInMonth(addDays(range.from, -1)));
+    const pt = addDays(pf, (period === 'week' ? 7 : daysInMonth(pf)) - 1);
+    if (pt < start) return null;
+    return rangeStats(snap, pf, pt, clock.today);
+  }, [snap, range, period, clock.today, start]);
   const st = useMemo(() => streak(snap, clock.today), [snap, clock.today]);
   const outcomes = useMemo(() => {
     const tz = snap.profile?.timezone ?? 'Europe/Warsaw';
@@ -58,12 +67,17 @@ export function StatsScreen() {
         </div>
       ) : <p className="muted small" style={{ margin: '12px 0' }}>{label}</p>}
 
-      <dl className="figs">
-        <div><dt>Realny czas twórczy</dt><dd className="num">{durationLabel(r.minutes)}</dd><span className="figs__note">suma sesji ≥ 10 min</span></div>
-        <div><dt>Sesje</dt><dd className="num">{r.sessionCount}</dd><span className="figs__note">timer i wpisy ręczne</span></div>
-        <div><dt>Realizacja planu</dt><dd className="num">{r.commitmentsTotal ? `${r.commitmentsFulfilled}/${r.commitmentsTotal}` : '—'}</dd><span className="figs__note">{r.commitmentsTotal ? `${Math.round((r.commitmentsFulfilled / r.commitmentsTotal) * 100)}% zaplanowanych bloków` : 'brak minionych zobowiązań'}</span></div>
-        <div><dt>Regularność</dt><dd className="num">{st.current} {plural(st.current, 'tydz.', 'tyg.', 'tyg.')}</dd><span className="figs__note">najlepiej {st.best}, łącznie {st.keptTotal}</span></div>
-      </dl>
+      <div className="figs2">
+        <Fig icon="clock" label="Czas tworzenia" value={durationLabel(r.minutes)} delta={prev ? delta(r.minutes, prev.minutes) : null} note="suma sesji ≥ 10 min" />
+        <Fig icon="check" label="Wykonane sesje" value={String(r.sessionCount)} delta={prev ? delta(r.sessionCount, prev.sessionCount) : null} note="timer i wpisy ręczne" />
+        <Fig icon="calendar" label="Realizacja planu" value={r.commitmentsTotal ? `${r.commitmentsFulfilled}/${r.commitmentsTotal}` : '—'} note={r.commitmentsTotal ? `${Math.round((r.commitmentsFulfilled / r.commitmentsTotal) * 100)}% minionych bloków` : 'brak minionych zobowiązań'} />
+        <Fig icon="route" label="Regularność" value={`${st.current} ${plural(st.current, 'tydz.', 'tyg.', 'tyg.')}`} note={`najlepiej ${st.best}, łącznie ${st.keptTotal}`} />
+      </div>
+      {prev && <p className="dim xs" style={{ marginTop: 8 }}>Zmiana względem poprzedniego {period === 'week' ? 'tygodnia' : 'miesiąca'}.</p>}
+
+      <Section title="Czas w tygodniach">
+        <WeekBars />
+      </Section>
 
       <Section title="Tygodnie">
         <div className="weeks-strip" role="list" aria-label="Ostatnie tygodnie">
@@ -115,6 +129,64 @@ export function StatsScreen() {
           <li>Godziny to ilość pracy, nie dowód poprawy jakości. Jakość oceniasz Ty — przez oceny ćwiczeń i rezultaty.</li>
         </ul>
       </Section>
+    </div>
+  );
+}
+
+function delta(cur: number, prev: number): number | null {
+  if (prev === 0) return cur > 0 ? null : 0;
+  return Math.round(((cur - prev) / prev) * 100);
+}
+
+function Fig({ icon, label, value, note, delta: d }: { icon: IconName; label: string; value: string; note: string; delta?: number | null }) {
+  return (
+    <div className="fig2">
+      <span className="fig2__icon"><Icon name={icon} size={18} /></span>
+      <span className="fig2__value num">{value}</span>
+      <span className="fig2__label">{label}</span>
+      {d != null ? <span className={`fig2__delta${d > 0 ? ' is-up' : d < 0 ? ' is-down' : ''}`}>{d > 0 ? '+' : ''}{d}%</span> : <span className="fig2__note">{note}</span>}
+    </div>
+  );
+}
+
+const BAR_CATS = [...SKILL_CATEGORIES, 'other'] as const;
+const BAR_COLOR: Record<string, string> = { songwriting: '#8b5cff', flow: '#4cb6ff', melody: '#e58bb7', production: '#f2b65a', analysis: '#49d5a4', other: '#5d5a88' };
+
+/** Last 8 weeks, minutes stacked by area (uncategorised work shown as "inne"). */
+function WeekBars() {
+  const clock = useClock();
+  const snap = useStore((s) => s.snap);
+  const tz = snap.profile?.timezone ?? 'Europe/Warsaw';
+  const weeks = useMemo(() => {
+    const out: { ws: string; parts: Record<string, number>; total: number }[] = [];
+    for (let i = 7; i >= 0; i--) {
+      const ws = addDays(weekStart(clock.today), -7 * i);
+      const parts: Record<string, number> = {};
+      for (const se of snap.sessions) {
+        if (!countsAsSession(se)) continue;
+        if (weekStart(sessionDate(se, tz)) !== ws) continue;
+        const c = categoryOfSession(se) ?? 'other';
+        parts[c] = (parts[c] ?? 0) + se.active_seconds / 60;
+      }
+      out.push({ ws, parts, total: Object.values(parts).reduce((a, b) => a + b, 0) });
+    }
+    return out;
+  }, [snap, clock.today, tz]);
+  const max = Math.max(60, ...weeks.map((w) => w.total));
+  if (weeks.every((w) => w.total === 0)) return <p className="muted small">Wykres pojawi się po pierwszych sesjach.</p>;
+  return (
+    <div className="wbars">
+      <div className="wbars__plot" role="img" aria-label={`Minuty pracy w ostatnich 8 tygodniach: ${weeks.map((w) => Math.round(w.total)).join(', ')}`}>
+        {weeks.map((w) => (
+          <div key={w.ws} className="wbars__col">
+            <div className="wbars__stack" style={{ height: `${(w.total / max) * 100}%` }}>
+              {BAR_CATS.filter((c) => w.parts[c]).map((c) => <span key={c} style={{ flexGrow: w.parts[c], background: BAR_COLOR[c] }} />)}
+            </div>
+            <span className="wbars__x">{shortDate(w.ws).split(' ')[0]}</span>
+          </div>
+        ))}
+      </div>
+      <div className="legend xs dim">{BAR_CATS.map((c) => <span key={c}><span className="mlegend" style={{ background: BAR_COLOR[c] }} /> {c === 'other' ? 'inne' : CATEGORY_LABEL[c].split(' ')[0]}</span>)}</div>
     </div>
   );
 }

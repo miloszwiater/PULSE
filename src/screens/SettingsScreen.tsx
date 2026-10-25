@@ -7,6 +7,7 @@ import { clearLocal, persistNow, useProfile, useStore } from '../data/store';
 import { syncNow } from '../data/sync';
 import { patchProfile } from '../data/actions';
 import { isIOS, isStandalone } from '../app/pwa';
+import { navigate } from '../app/router';
 import { Button, Chip, Confirm, Field, ScreenHeader, Section, Toggle } from '../ui/kit';
 import { Icon } from '../ui/Icon';
 import { toast } from '../ui/toast';
@@ -79,6 +80,12 @@ export function SettingsScreen() {
     <div className="screen">
       <ScreenHeader title="Ustawienia" onBack />
 
+      <button className="row row--action" onClick={() => navigate('/profil')} style={{ marginBottom: 8 }}>
+        <span className="row__lead"><Icon name="user" /></span>
+        <span className="row__main"><span className="row__title">Profil i wygląd</span><span className="row__sub">Wizja, wartości, scena w tle</span></span>
+        <span className="row__trail"><Icon name="chevron" size={18} /></span>
+      </button>
+
       <Section title="Profil">
         <div className="stack">
           <Field label="Imię"><input className="input" value={name} onChange={(e) => setName(e.target.value)} onBlur={() => name !== p.display_name && patchProfile({ display_name: name.trim() })} maxLength={80} /></Field>
@@ -120,6 +127,17 @@ export function SettingsScreen() {
           <Toggle checked={p.reminders.weekly_review} onChange={(v) => patchProfile({ reminders: { ...p.reminders, weekly_review: v } })} label="Podsumowanie tygodnia" hint="Niedziela wieczorem." />
           <Toggle checked={p.reminders.quiet_during_work} onChange={(v) => patchProfile({ reminders: { ...p.reminders, quiet_during_work: v } })} label="Cisza w czasie pracy" hint="Nic nie przychodzi w godzinach pracy z grafiku." />
           {subscribed && <Button variant="secondary" size="sm" onClick={() => api('/api/push/test', { body: {} }).then(() => toast('Wysłano testowe powiadomienie.', 'ok')).catch((e: ApiError) => toast(e.message, 'error'))}>Wyślij test</Button>}
+        </div>
+      </Section>
+
+      <Section title="Skupienie">
+        <div className="focuscard">
+          <span className="focuscard__icon"><Icon name="lock" size={20} /></span>
+          <div className="stack" style={{ gap: 6 }}>
+            <p><strong>Blokowanie aplikacji wymaga natywnej aplikacji iOS.</strong></p>
+            <p className="muted small">Blokowanie TikToka czy Instagrama podczas sesji wymaga API Czasu przed ekranem (Screen Time), niedostępnego dla aplikacji webowych. PULSE nie udaje tej funkcji.</p>
+            <p className="muted small">Co działa teraz: tryb skupienia w sesji (ekran nie gaśnie, widok bez rozpraszaczy) oraz systemowy tryb Skupienie w iOS — możesz go włączać ręcznie lub automatyzacją w aplikacji Skróty.</p>
+          </div>
         </div>
       </Section>
 

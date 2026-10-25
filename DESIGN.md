@@ -1,6 +1,14 @@
 # PULSE — design system
 
-## Koncepcja
+## Wersja 2 (na podstawie referencji użytkownika)
+Kierunek: nocne studio — sylwetka artysty w kapturze ze słuchawkami przy monitorze z DAW, miasto za oknem, fioletowa poświata. W odróżnieniu od referencji (ilustracje AI) scena jest **generowana kodem** (`src/ui/NightScene.tsx`): panorama miasta jest unikalna dla konta (seed = id użytkownika), niebo zmienia się z porą dnia (świt / dzień / zmierzch / noc), do wyboru „zawsze noc”, „deszcz” albo własne zdjęcie przechowywane tylko na urządzeniu. Scena występuje na Start, Twórz (bez postaci — puste biurko czeka), w sesji (przygaszona) i w Profilu.
+- Okładki ćwiczeń i projektów: generowane fale w barwie obszaru (`Cover`), książki: typograficzne okładki (`BookCover`) — bez zdjęć stockowych.
+- Karty „szkło nocy” z delikatnym fioletowym gradientem u góry; przyciski główne z gradientem i poświatą; aktywne zakładki i segmenty wypełnione fioletem.
+- Sesja: kafelki typów, timer z animowaną falą (canvas, statyczna przy reduced motion), sterowanie −10 min / pauza / zakończ.
+- Zamiast cytatu motywacyjnego na Start: pierwsze zdanie **Twojej wizji** z Profilu.
+- Świadome odstępstwa od referencji: brak udawanego blokowania aplikacji (uczciwa karta w Ustawieniach), procenty w mapie rocznej i Promocji liczone z danych.
+
+## Koncepcja (v1)
 **Puls jako struktura, nie dekoracja.** Jedynym „głośnym” elementem jest linia pulsu: na Start to rytm tygodnia (każdy wyskok to realny czas twórczy danego dnia, przerywane wyskoki to plan, przyciemnione pola to dni chronione), w sesji — bijący znacznik timera, w marce — znak przy logotypie. Wszystko inne jest ciche: głęboki granat, typografia, cienkie linie podziału.
 
 Aplikacja ma przypominać studyjne narzędzie pracy o północy, a nie dashboard SaaS: listy z liniami zamiast siatek identycznych kart, jedna wyróżniona powierzchnia na ekran (najważniejsza rzecz teraz), fiolet tylko dla akcji i postępu.

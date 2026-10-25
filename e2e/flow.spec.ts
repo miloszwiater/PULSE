@@ -18,7 +18,7 @@ test('main flow: Creative Flow → pause → finish with demo → stats', async 
   await expect(page).toHaveURL(/\/tworz/);
   await expect(page.locator('.toast')).toContainText('1 h 30 min');
   await page.goto('/rozwoj/statystyki');
-  await expect(page.locator('.figs')).toContainText('1 h 30 min');
+  await expect(page.locator('.figs2')).toContainText('1 h 30 min');
   await expect(page.locator('.tag--violet')).toContainText('Demo: 1');
 });
 
@@ -73,7 +73,7 @@ test('saving the same session twice does not double time or count', async ({ pag
   const { rows } = await pull(page.request);
   expect(rows.sessions.filter((s) => s.id === 'se_dup')).toHaveLength(1);
   await page.goto('/rozwoj/statystyki');
-  await expect(page.locator('.figs')).toContainText('1 h');
+  await expect(page.locator('.figs2')).toContainText('1 h');
 });
 
 test('server recomputes session time from timestamps (client cannot inflate it)', async ({ page }) => {
@@ -116,10 +116,11 @@ test('no AI key: honest mentor state, rest of the app works', async ({ page }) =
 
 test('sick report adjusts plan and is not punished', async ({ page }) => {
   await newUser(page);
+  await page.locator('.tile2--energy').click();
   await page.getByRole('button', { name: 'Choroba' }).click();
   await page.getByRole('button', { name: '3 dni' }).click();
   await page.getByRole('button', { name: 'Zapisz' }).click();
-  await expect(page.locator('.today__headline')).toHaveText('Dziś odpoczywasz.');
+  await expect(page.locator('.hero__headline')).toHaveText('Dziś odpoczywasz.');
   await page.goto('/plan');
   await expect(page.locator('.daystatus')).toContainText('Choroba');
 });
@@ -127,7 +128,7 @@ test('sick report adjusts plan and is not punished', async ({ page }) => {
 test('no horizontal overflow on main screens (375px)', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 740 });
   await newUser(page);
-  for (const path of ['/', '/plan', '/plan?v=week', '/plan?v=month', '/tworz', '/rozwoj', '/rozwoj/obszar/flow', '/rozwoj/biblioteka', '/rozwoj/styl', '/rozwoj/statystyki', '/kariera', '/kariera/roadmapa', '/kariera/promocja', '/kariera/cele', '/mentor', '/care', '/ustawienia', '/projekty']) {
+  for (const path of ['/', '/plan', '/plan?v=week', '/plan?v=month', '/tworz', '/rozwoj', '/rozwoj/obszar/flow', '/rozwoj/biblioteka', '/rozwoj/styl', '/rozwoj/statystyki', '/kariera', '/kariera/roadmapa', '/kariera/promocja', '/kariera/cele', '/mentor', '/care', '/ustawienia', '/projekty', '/profil']) {
     await page.goto(path);
     await page.waitForTimeout(300);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

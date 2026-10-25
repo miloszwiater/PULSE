@@ -10,7 +10,7 @@ function columns(table: string): Set<string> {
   const m = new RegExp(`CREATE TABLE ${table} \\(([\\s\\S]*?)\\n\\);`).exec(sql);
   if (!m) throw new Error(`no table ${table}`);
   const cols = new Set(m[1].split(/,\s*/).map((c) => c.trim().split(/\s+/)[0].replace(/"/g, '')).filter(Boolean));
-  for (const a of sql.matchAll(new RegExp(`ALTER TABLE ${table} ADD COLUMN (\\w+)`, 'g'))) cols.add(a[1]);
+  for (const a of sql.matchAll(new RegExp(`ALTER TABLE ${table} ADD COLUMN "?(\\w+)"?`, 'g'))) cols.add(a[1]);
   return cols;
 }
 

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { SESSION_TYPES, OUTCOMES, type Outcome, type SessionType } from '../../../shared/schema';
+import { SESSION_TYPES, OUTCOMES, type Outcome, type SessionType, type SkillCategory } from '../../../shared/schema';
 import { countsAsSession, sessionDate } from '../../../shared/domain/sessions';
 import { recommendExercises } from '../../../shared/domain/training';
 import { dayContext } from '../../../shared/domain/day';
@@ -9,18 +9,33 @@ import { useStore } from '../../data/store';
 import { useClock } from '../../data/clock';
 import { activeSession, logManualSession, startSession } from '../../data/actions';
 import { navigate } from '../../app/router';
-import { Button, Chip, Empty, Field, Row, ScreenHeader, Section, Sheet } from '../../ui/kit';
-import { Icon } from '../../ui/Icon';
+import { Button, Chip, Empty, Field, Row, Section, Sheet } from '../../ui/kit';
+import { Icon, type IconName } from '../../ui/Icon';
+import { NightScene } from '../../ui/NightScene';
+import { useScene } from '../../ui/useScene';
+import { Cover } from '../../ui/Cover';
 import { dayLabel, OUTCOME_LABEL, STAGE_LABEL, TYPE_LABEL } from '../../ui/format';
 import { toast } from '../../ui/toast';
 
 const FLOW_TYPES: SessionType[] = SESSION_TYPES.filter((t) => t !== 'other' && t !== 'training');
+type TypeTile = { type: SessionType; label: string; icon: IconName; category: SkillCategory | null };
+export const MAIN_TYPES: TypeTile[] = [
+  { type: 'create', label: 'Tworzę', icon: 'music', category: null },
+  { type: 'write', label: 'Piszę do beatu', icon: 'pen', category: 'songwriting' },
+  { type: 'record', label: 'Nagrywam', icon: 'mic', category: null },
+  { type: 'inspiration', label: 'Pomysł', icon: 'bulb', category: null },
+];
+export const MORE_TYPES: TypeTile[] = [
+  { type: 'flow', label: 'Flow', icon: 'wave', category: 'flow' },
+  { type: 'production', label: 'Produkcja', icon: 'sliders', category: 'production' },
+  { type: 'experiment', label: 'Eksperyment', icon: 'flask', category: null },
+];
 
 export function CreateScreen() {
   const clock = useClock();
   const snap = useStore((s) => s.snap);
   const tz = snap.profile?.timezone ?? 'Europe/Warsaw';
-  const [type, setType] = useState<SessionType | null>(null);
+  const scene = useScene(clock.nowMin);
   const [manualOpen, setManualOpen] = useState(false);
   const running = activeSession();
   const ctx = useMemo(() => dayContext(snap, clock.today, clock), [snap, clock]);
@@ -32,23 +47,33 @@ export function CreateScreen() {
   const go = (fn: () => void) => { fn(); navigate('/sesja'); };
 
   return (
-    <div className="screen create">
-      <ScreenHeader title="Twórz" />
-
-      <section className="flow-hero" aria-labelledby="flow-h">
-        <h2 id="flow-h" className="flow-hero__title">Creative Flow</h2>
-        <p className="flow-hero__lead">Jest beat, jest pomysł? Zacznij od razu. Rodzaj sesji jest opcjonalny — zmienisz go w trakcie.</p>
-        <div className="cluster flow-hero__types" role="group" aria-label="Rodzaj sesji (opcjonalnie)">
-          {FLOW_TYPES.map((t) => <Chip key={t} on={type === t} onClick={() => setType(type === t ? null : t)}>{TYPE_LABEL[t]}</Chip>)}
+    <div className="create2">
+      <section className="bandhero" aria-labelledby="flow-h">
+        <NightScene {...scene} person={false} />
+        <div className="bandhero__copy">
+          <h1 id="flow-h" className="bandhero__title">Creative Flow</h1>
+          <p className="bandhero__lead">Masz wenę? Przechwyć ją — jedno dotknięcie i czas już się liczy.</p>
         </div>
-        {running ? (
-          <Button variant="primary" size="lg" block icon="play" onClick={() => navigate('/sesja')}>Wróć do trwającej sesji</Button>
-        ) : (
-          <Button variant="primary" size="lg" block icon="play" onClick={() => go(() => startSession({ type: type ?? 'create', category: type === 'write' ? 'songwriting' : type === 'flow' ? 'flow' : type === 'production' ? 'production' : null }))}>
-            Zacznij teraz
-          </Button>
-        )}
       </section>
+      <div className="create2__body">
+      {running ? (
+        <Button variant="primary" size="lg" block icon="play" onClick={() => navigate('/sesja')}>Wróć do trwającej sesji</Button>
+      ) : (
+        <>
+          <div className="typetiles" role="group" aria-label="Zacznij sesję wybranego rodzaju">
+            {MAIN_TYPES.map((t) => (
+              <button key={t.type} className="typetile" onClick={() => go(() => startSession({ type: t.type, category: t.category }))}>
+                <span className="typetile__icon"><Icon name={t.icon} size={24} /></span>
+                <span className="typetile__label">{t.label}</span>
+              </button>
+            ))}
+          </div>
+          <div className="cluster typemore" role="group" aria-label="Inne rodzaje">
+            {MORE_TYPES.map((t) => <Chip key={t.type} icon={t.icon} onClick={() => go(() => startSession({ type: t.type, category: t.category }))}>{t.label}</Chip>)}
+          </div>
+        </>
+      )}
+      <div className="screen create" style={{ padding: 0 }}>
 
       {today.length > 0 && (
         <Section title="Zaplanowane na dziś">
@@ -65,7 +90,7 @@ export function CreateScreen() {
         <Section title="Trening do beatu" aside={<button className="btn btn--quiet" onClick={() => navigate('/rozwoj')}>Wszystkie</button>}>
           <div className="list">
             {recs.map((r) => (
-              <Row key={r.exercise.id} title={r.exercise.title}
+              <Row key={r.exercise.id} leading={<Cover seed={r.exercise.id} tone={r.exercise.category} size={52} />} title={r.exercise.title}
                 sub={`${CATEGORY_SHORT[r.exercise.category]} · ok. ${r.exercise.minutes} min${r.reasons[0] ? ` · ${r.reasons[0]}` : ''}`}
                 onClick={() => navigate(`/rozwoj/obszar/${r.exercise.category}?ex=${r.exercise.id}`)} />
             ))}
@@ -77,7 +102,7 @@ export function CreateScreen() {
         {projects.length ? (
           <div className="list">
             {projects.map((p) => (
-              <Row key={p.id} leading={<Icon name="folder" size={20} />} title={p.title} sub={`${STAGE_LABEL[p.stage]}${p.last_worked_at ? ` · ostatnio ${dayLabel(new Date(p.last_worked_at).toISOString().slice(0, 10), clock.today).toLowerCase()}` : ''}`}
+              <Row key={p.id} leading={<Cover seed={p.id} size={52} />} title={p.title} sub={`${STAGE_LABEL[p.stage]}${p.last_worked_at ? ` · ostatnio ${dayLabel(new Date(p.last_worked_at).toISOString().slice(0, 10), clock.today).toLowerCase()}` : ''}`}
                 onClick={() => navigate(`/projekty/${p.id}`)} />
             ))}
           </div>
@@ -103,6 +128,8 @@ export function CreateScreen() {
       </Section>
 
       <ManualSessionSheet open={manualOpen} onClose={() => setManualOpen(false)} today={clock.today} />
+      </div>
+      </div>
     </div>
   );
 }

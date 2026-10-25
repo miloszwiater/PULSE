@@ -27,6 +27,7 @@ const PromotionScreen = lazy(() => import('../screens/career/PromotionScreen').t
 const GoalsScreen = lazy(() => import('../screens/career/GoalsScreen').then((m) => ({ default: m.GoalsScreen })));
 const MentorScreen = lazy(() => import('../screens/MentorScreen').then((m) => ({ default: m.MentorScreen })));
 const CareScreen = lazy(() => import('../screens/CareScreen').then((m) => ({ default: m.CareScreen })));
+const ProfileScreen = lazy(() => import('../screens/ProfileScreen').then((m) => ({ default: m.ProfileScreen })));
 const SettingsScreen = lazy(() => import('../screens/SettingsScreen').then((m) => ({ default: m.SettingsScreen })));
 
 let loopStarted = false;
@@ -121,6 +122,7 @@ function Shell() {
     case 'mentor': screen = <MentorScreen />; break;
     case 'care': screen = <CareScreen />; break;
     case 'ustawienia': screen = <SettingsScreen />; break;
+    case 'profil': screen = <ProfileScreen />; break;
     default:
       queueMicrotask(() => navigate('/', { replace: true }));
       screen = null;

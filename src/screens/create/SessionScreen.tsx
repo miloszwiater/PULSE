@@ -11,6 +11,11 @@ import { back, navigate } from '../../app/router';
 import { Button, Chip, Confirm, Empty, IconButton, Sheet } from '../../ui/kit';
 import { Icon } from '../../ui/Icon';
 import { formatTimer, TYPE_LABEL } from '../../ui/format';
+import { NightScene } from '../../ui/NightScene';
+import { useScene } from '../../ui/useScene';
+import { LiveWave } from '../../ui/LiveWave';
+import { MAIN_TYPES } from './CreateScreen';
+import { toast } from '../../ui/toast';
 import { FinishSheet } from './FinishSheet';
 
 type WakeLockSentinelLike = { release: () => Promise<void> };
@@ -44,6 +49,7 @@ function LiveSession({ session, finishOpen, setFinishOpen }: { session: Session;
   const [checked, setChecked] = useState<number[]>([]);
   const [newProject, setNewProject] = useState('');
   const lock = useRef<WakeLockSentinelLike | null>(null);
+  const scene = useScene(clock.nowMin);
   const project = projects.find((p) => p.id === session.project_id);
 
   // Keep the screen awake in focus mode where the platform allows it.
@@ -72,30 +78,48 @@ function LiveSession({ session, finishOpen, setFinishOpen }: { session: Session;
 
   return (
     <div className={`session${focus ? ' session--focus' : ''}${paused ? ' is-paused' : ''}`}>
+      <div className="session__bg"><NightScene {...scene} /></div>
       <header className="session__top">
         <IconButton icon="back" label="Zminimalizuj sesję" onClick={() => back('/tworz')} />
-        <button className="session__type" onClick={() => setTypeOpen(true)}>
-          {TYPE_LABEL[session.type]}{session.category ? ` · ${CATEGORY_SHORT[session.category]}` : ''}
-          <Icon name="chevron" size={14} style={{ transform: 'rotate(90deg)' }} />
-        </button>
+        <div className="session__heading">
+          <p className="session__kicker">Creative Flow</p>
+          <button className="session__type" onClick={() => setTypeOpen(true)}>
+            {session.title || TYPE_LABEL[session.type]}{session.category ? ` · ${CATEGORY_SHORT[session.category]}` : ''}
+            <Icon name="chevron" size={14} style={{ transform: 'rotate(90deg)' }} />
+          </button>
+        </div>
         <IconButton icon="focus" label={focus ? 'Wyłącz tryb skupienia' : 'Tryb skupienia'} className={focus ? 'is-active' : ''} onClick={toggleFocus} aria-pressed={focus} />
       </header>
 
-      <div className="session__clock" aria-live="off">
-        <p className="session__title">{session.title || 'Sesja twórcza'}</p>
-        <p className="session__time num" aria-label={`Czas sesji: ${minutes} minut`}>{formatTimer(secs)}</p>
-        <div className={`session__beat${paused ? '' : ' is-live'}`} aria-hidden="true">
-          <svg viewBox="0 0 300 40" preserveAspectRatio="none"><path d="M0 20 H120 L128 24 L136 6 L146 34 L153 20 H300" /></svg>
+      {!focus && (
+        <div className="typetiles typetiles--compact" role="group" aria-label="Rodzaj sesji">
+          {MAIN_TYPES.map((t) => (
+            <button key={t.type} className={`typetile${session.type === t.type ? ' is-on' : ''}`} aria-pressed={session.type === t.type}
+              onClick={() => updateSession(session, { type: t.type, category: t.category ?? session.category })}>
+              <span className="typetile__icon"><Icon name={t.icon} size={22} /></span>
+              <span className="typetile__label">{t.label}</span>
+            </button>
+          ))}
         </div>
-        <p className="session__state">{paused ? 'Pauza — czas nie biegnie' : 'Czas liczony z zegara, także przy zablokowanym telefonie'}</p>
-      </div>
+      )}
 
-      <div className="session__controls">
-        {paused
-          ? <Button variant="secondary" size="lg" icon="play" onClick={() => resume(session)}>Wznów</Button>
-          : <Button variant="secondary" size="lg" icon="pause" onClick={() => pause(session)}>Pauza</Button>}
-        <Button variant="primary" size="lg" icon="check" onClick={() => setFinishOpen(true)}>Zakończ</Button>
-      </div>
+      <section className="timer-card" aria-label="Czas sesji">
+        <div className="timer-card__head"><span>Czas sesji</span><span className={`timer-card__state${paused ? ' is-paused' : ''}`}>{paused ? 'pauza' : 'nagrywa czas'}</span></div>
+        <p className="session__time num" aria-label={`Czas sesji: ${minutes} minut`}>{formatTimer(secs)}</p>
+        <LiveWave active={!paused} />
+        <div className="timer-card__controls">
+          <button className="ctl" onClick={() => { updateSession(session, { started_at: Math.min(session.started_at + 600000, Date.now()) }); toast('Odjęto 10 minut — np. gdy timer ruszył za wcześnie.', 'info'); }} disabled={secs < 600} aria-label="Odejmij 10 minut">
+            <span className="num">−10</span><span className="ctl__unit">min</span>
+          </button>
+          <button className="ctl ctl--main" onClick={() => (paused ? resume(session) : pause(session))} aria-label={paused ? 'Wznów' : 'Pauza'}>
+            <Icon name={paused ? 'play' : 'pause'} size={30} strokeWidth={2.4} fill={paused ? 'currentColor' : 'none'} />
+          </button>
+          <button className="ctl ctl--done" onClick={() => setFinishOpen(true)} aria-label="Zakończ">
+            <Icon name="check" size={26} strokeWidth={2.4} />
+          </button>
+        </div>
+        <p className="session__state">{paused ? 'Pauza — czas nie biegnie.' : 'Czas liczony z zegara — także przy zablokowanym telefonie.'}</p>
+      </section>
 
       {focus ? (
         <p className="session__focusnote">
@@ -105,7 +129,8 @@ function LiveSession({ session, finishOpen, setFinishOpen }: { session: Session;
         <div className="session__extras">
           {ex && (
             <section className="session__exercise">
-              <h2 className="session__h">{ex.title}</h2>
+              <h2 className="session__h">Cel tej sesji</h2>
+              <p className="small"><strong>{ex.title}</strong></p>
               <p className="muted small">{ex.goal}</p>
               <ol className="checklist">
                 {ex.steps.map((s, i) => (

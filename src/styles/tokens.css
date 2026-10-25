@@ -3,26 +3,30 @@
   color-scheme: dark;
 
   /* Surfaces: midnight blue-black, never neutral grey */
-  --ink-0: #05070f;
-  --ink-1: #0a0f1e;
-  --ink-2: #10172b;
-  --ink-3: #19213c;
-  --ink-4: #232d4f;
-  --line: #1d2645;
-  --line-strong: #2e3a66;
+  --ink-0: #07061a;
+  --ink-1: #0f0d24;
+  --ink-2: #161334;
+  --ink-3: #201c46;
+  --ink-4: #2c275a;
+  --line: #221e48;
+  --line-strong: #362f6e;
 
   /* Text */
-  --text: #eef0fa;
-  --text-2: #a5acca;
-  --text-3: #6d7598;
+  --text: #f2efff;
+  --text-2: #aca6d4;
+  --text-3: #726c9e;
   --text-inv: #0a0d18;
 
   /* Brand */
-  --violet: #8e6bff;
-  --violet-hi: #a98dff;
-  --violet-press: #7652f5;
+  --violet: #8b5cff;
+  --violet-hi: #a98bff;
+  --violet-press: #6d3cf0;
   --violet-wash: rgba(142, 107, 255, 0.13);
   --violet-line: rgba(142, 107, 255, 0.42);
+  --violet-deep: #5b2be0;
+  --grad-primary: linear-gradient(180deg, #9a6dff 0%, #7444f5 100%);
+  --grad-card: linear-gradient(180deg, rgba(139, 92, 255, 0.07) 0%, rgba(139, 92, 255, 0) 60%);
+  --glow-sm: 0 0 0 1px rgba(139, 92, 255, 0.45), 0 6px 22px -8px rgba(139, 92, 255, 0.7);
   --blue: #4cb6ff;
   --blue-wash: rgba(76, 182, 255, 0.12);
 
@@ -78,6 +82,7 @@
   --r-sm: 10px;
   --r-md: 14px;
   --r-lg: 22px;
+  --r-xl: 28px;
   --r-pill: 999px;
 
   /* Elevation: light from above, no grey drop shadows */

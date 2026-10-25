@@ -11,6 +11,7 @@ import { putRow, startSession } from '../../data/actions';
 import { navigate } from '../../app/router';
 import { Button, Chip, Confirm, Empty, Field, Row, ScreenHeader, Section, Segmented, Sheet } from '../../ui/kit';
 import { Icon } from '../../ui/Icon';
+import { BookCover } from '../../ui/Cover';
 import { shortDate } from '../../ui/format';
 import { toast } from '../../ui/toast';
 
@@ -66,7 +67,7 @@ export function LibraryScreen() {
         {list.length ? (
           <div className="list">
             {list.map((b) => (
-              <Row key={b.id} leading={<Icon name="book" />} title={b.title}
+              <Row key={b.id} leading={<BookCover title={b.title} author={b.author} width={40} />} title={b.title}
                 sub={`${b.author}${b.author ? ' · ' : ''}${BOOK_STATUS_LABEL[b.status]}${b.due_date && b.status !== 'read' ? ` · orientacyjnie do ${shortDate(b.due_date)}` : ''}${b.progress != null && b.status === 'reading' ? ` · ${b.progress}%` : ''}`}
                 onClick={() => setOpen(b.id)} />
             ))}
@@ -82,6 +83,7 @@ export function LibraryScreen() {
         <div className="list">
           {recs.map(({ book, why }) => (
             <button key={book.key} className="row row--action" onClick={() => setCatalog(book)}>
+              <span className="row__lead"><BookCover title={book.title} author={book.author} width={40} /></span>
               <span className="row__main">
                 <span className="row__title">{book.title}</span>
                 <span className="row__sub">{book.author} · {why}</span>
@@ -118,7 +120,7 @@ function CatalogSheet({ book, onClose, onAdded }: { book: CatalogBook; onClose: 
   return (
     <Sheet open onClose={onClose} title={book.title}
       footer={<><Button variant="secondary" onClick={() => add('planned')}>Na później</Button><Button variant="primary" onClick={() => add('reading')}>Zaczynam czytać</Button></>}>
-      <p className="muted small">{book.author} · ok. {book.pages} stron{book.pl ? ' · jest polskie wydanie' : ''}</p>
+      <div className="bookhead"><BookCover title={book.title} author={book.author} width={86} /><p className="muted small">{book.author}<br />ok. {book.pages} stron{book.pl ? <><br />jest polskie wydanie</> : null}</p></div>
       <div className="stack"><span className="field__label">Czego uczy</span><p>{book.learning_goal}</p></div>
       <div className="stack"><span className="field__label">Dlaczego teraz</span><p className="small">{book.why}</p></div>
       <div className="stack"><span className="field__label">Ćwiczenie po lekturze</span><p className="small">{book.practice}</p></div>
@@ -168,7 +170,7 @@ function BookSheet({ id, onClose }: { id: string; onClose: () => void }) {
   const idx = BOOK_FLOW.indexOf(b.status);
   return (
     <Sheet open onClose={() => { if (notes !== b.notes) save({ notes }); onClose(); }} title={b.title} tall>
-      <p className="muted small">{b.author}{b.topic ? ` · ${b.topic}` : ''}</p>
+      <div className="bookhead"><BookCover title={b.title} author={b.author} width={86} /><p className="muted small">{b.author}{b.topic ? <><br />{b.topic}</> : null}</p></div>
       <div className="stack">
         <span className="field__label">Status</span>
         <div className="book-flow">

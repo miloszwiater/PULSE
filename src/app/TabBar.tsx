@@ -1,7 +1,7 @@
 import { Icon, type IconName } from '../ui/Icon';
 import { navigate, tabOf, TABS, usePath } from './router';
 
-const ICONS: Record<string, IconName> = { '/': 'start', '/plan': 'plan', '/tworz': 'create', '/rozwoj': 'growth', '/kariera': 'career' };
+const ICONS: Record<string, IconName> = { '/': 'start', '/plan': 'plan', '/tworz': 'music', '/rozwoj': 'growth', '/kariera': 'career' };
 
 export function TabBar() {
   const path = usePath();

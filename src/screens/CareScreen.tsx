@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useStore, remove, commit, type Write } from '../data/store';
 import { useClock } from '../data/clock';
-import { Confirm, ScreenHeader, Section } from '../ui/kit';
+import { Button, Confirm, ScreenHeader, Section } from '../ui/kit';
+import { Icon } from '../ui/Icon';
+import { navigate } from '../app/router';
 import { dayLabel } from '../ui/format';
 import { CheckIn, SIGNALS } from './CheckIn';
 import { checkIn } from '../data/actions';
@@ -12,6 +14,7 @@ export function CareScreen() {
   const clock = useClock();
   const snap = useStore((s) => s.snap);
   const [clearOpen, setClearOpen] = useState(false);
+  const todaySignal = effectiveStatus(snap, clock.today).status === 'sick' ? 'sick' : snap.care.filter((c) => c.date === clock.today).sort((a, b) => b.at - a.at)[0]?.signal;
   const history = [...snap.care].sort((a, b) => b.at - a.at).slice(0, 30);
   const next7 = Array.from({ length: 7 }, (_, i) => addDays(clock.today, i)).map((d) => ({ d, s: effectiveStatus(snap, d).status }));
   const sickAhead = next7.filter((x) => x.s === 'sick');
@@ -19,8 +22,18 @@ export function CareScreen() {
     <div className="screen">
       <ScreenHeader title="Pulse Care" onBack sub="Energia i dobrostan. Odpoczynek, choroba i ciężka praca nie są porażką — plan i metryki się do nich dostosowują." />
       <Section title="Jak się dziś czujesz?">
-        <CheckIn />
+        <CheckIn tiles />
       </Section>
+      {todaySignal && todaySignal !== 'energized' && (
+        <section className="recocard">
+          <p className="recocard__k"><Icon name="sparkle" size={16} /> Zanim zaczniesz sesję</p>
+          <ul>
+            {(todaySignal === 'sick' ? ['Odpoczynek ma pierwszeństwo — plan na te dni jest odciążony.', 'Jeśli objawy są poważne lub się przedłużają, skonsultuj się z lekarzem.', 'Nic nie trzeba nadrabiać: cel tygodnia zmniejsza się sam.']
+              : ['Zrób 15–20 minut przerwy bez ekranu.', 'Zjedz coś i napij się wody.', 'Jeśli potem nadal brak energii — wybierz lekką sesję 20–30 min albo odpuść dzień.']).map((t) => <li key={t}><Icon name="check" size={14} /> <span>{t}</span></li>)}
+          </ul>
+          <Button variant="primary" block onClick={() => navigate('/plan')}>Zobacz plan na dziś</Button>
+        </section>
+      )}
       {sickAhead.length > 0 && (
         <Section title="Okres regeneracji">
           <p className="muted small">Plan jest odciążony: {sickAhead.map((x) => dayLabel(x.d, clock.today).toLowerCase()).join(', ')}. Cel tygodnia obniża się proporcjonalnie.</p>

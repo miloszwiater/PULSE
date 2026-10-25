@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "pulse",
+  "account_id": "435eb324574824d8d798487ad1b5451c",
   "main": "worker/index.ts",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -12,8 +13,7 @@
     {
       "binding": "DB",
       "database_name": "pulse",
-      // Replace with the id printed by `wrangler d1 create pulse` before the first deploy.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "ec254630-76a2-4951-92d2-a2928e012099",
       "migrations_dir": "migrations"
     }
   ],

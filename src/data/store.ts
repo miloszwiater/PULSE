@@ -85,9 +85,24 @@ export async function loadLocal(user: AuthUser) {
     idbGet<Op[]>(KEY(user.id, 'outbox')),
     idbGet<number>(KEY(user.id, 'cursor')),
   ]).catch(() => [undefined, undefined, undefined] as const);
-  const merged = { ...emptyRows(), ...(rows ?? {}) } as Rows;
+  const merged = upgradeRows({ ...emptyRows(), ...(rows ?? {}) } as Rows);
   useStore.setState({ user, rows: merged, snap: toSnapshot(merged), outbox: outbox ?? [], cursor: cursor ?? 0, ready: true });
   void idbSet('pulse:lastUser', user).catch(() => undefined);
+}
+
+/**
+ * Rows cached by an older app version lack fields added since. Re-parsing
+ * fills schema defaults without touching values; rows that fail stay as they were.
+ */
+function upgradeRows(rows: Rows): Rows {
+  for (const e of ENTITY_NAMES) {
+    const table = rows[e] as Record<string, unknown>;
+    for (const [id, r] of Object.entries(table)) {
+      const parsed = ENTITIES[e].safeParse(r);
+      if (parsed.success) table[id] = parsed.data;
+    }
+  }
+  return rows;
 }
 
 export async function lastUser(): Promise<AuthUser | null> {

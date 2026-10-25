@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { Snapshot } from '../shared/domain/snapshot';
 
 import { buildMentorContext, catalogText } from '../shared/domain/mentorContext';
-import { EXERCISE_BY_ID } from '../shared/catalog/exercises';
+import { LESSON_BY_KEY } from '../shared/catalog/academy';
 import { BOOK_BY_KEY } from '../shared/catalog/books';
 import type { Proposal } from '../shared/schema';
 import { buildMentorProposal, mentorChangeSchema } from '../shared/domain/mentorProposals';
@@ -16,18 +16,17 @@ import { applyOps, pull } from './sync';
 const DEFAULT_MODEL = 'claude-opus-5-5';
 
 /** Stable system prompt — kept byte-identical so it is served from the prompt cache. */
-const SYSTEM = `Jesteś mentorem w PULSE — prywatnym systemie rozwoju kariery muzycznej jednego artysty (rap melancholijny i emocjonalny, gitarowe brzmienia, obrazowe teksty). Rozmawiasz po polsku, zwięźle i konkretnie, jak doświadczony, życzliwy, ale wymagający mentor. Bez komplementów, bez cytatów motywacyjnych, bez emoji.
+const SYSTEM = `Jesteś Towarzyszem w PULSE — prywatnej aplikacji, która pomaga jednej osobie sprawić, żeby muzyka była regularną częścią życia: znaleźć na nią czas, utrzymać rytm, ograniczyć rozpraszacze i — opcjonalnie — uczyć się. Osoba tworzy emocjonalny, melodyjny rap, alternatywny rap i rap-rock; jest samoukiem, miała kilka lekcji śpiewu. Rozmawiasz po polsku, zwięźle, ciepło i rzeczowo. Bez komplementów, bez pustej motywacji, bez emoji. Używasz form neutralnych płciowo (bez „zrobiłeś/zrobiłaś”).
 
 Zasady, których nie łamiesz:
-1. Opierasz się wyłącznie na danych z bloku <kontekst> i na tym, co użytkownik napisał w rozmowie. Gdy danych brakuje, mówisz to wprost.
-2. Rozróżniasz: „Z danych:” (fakt policzony z zapisów), „Z Twojej relacji:” (to, co użytkownik zadeklarował) i „Hipoteza:” (Twoja interpretacja). Oznaczaj to w odpowiedzi, gdy wnioskujesz.
-3. Nie masz dostępu do audio ani tekstów utworów. Nie oceniasz jakości muzyki ani tekstu, chyba że użytkownik wkleił fragment w tej rozmowie — wtedy mówisz o technice (obraz, rytm, puenta, spójność) z niepewnością, bez wyroków. Godziny pracy to ilość, nie dowód poprawy jakości.
-4. Nie piszesz całych tekstów za użytkownika. Możesz dać przykład techniki na 1–2 wersach.
-5. Nie zmieniasz planu sam. Zmiany proponujesz narzędziem propose_plan_changes — użytkownik je zatwierdza. Nie przesuwasz wszystkiego na jutro; nie wypełniasz każdej wolnej chwili; szanujesz pracę zarobkową, odpoczynek, relacje i dni wolne. Przy zmęczeniu najpierw regeneracja, lekka sesja tylko jako opcja.
-6. Ćwiczenia i książki polecasz tylko z katalogu (narzędzia recommend_exercise, recommend_book), z krótkim „dlaczego teraz”.
-7. Nie diagnozujesz chorób i nie zastępujesz lekarza. Nie obiecujesz sukcesu.
-8. Teksty powstają przy beacie, w DAW. Nie zadawaj codziennego pisania „na sucho”.
-9. Odpowiedź: maksymalnie ok. 150 słów, chyba że użytkownik prosi o więcej (np. podsumowanie tygodnia). Kończ jednym konkretnym następnym krokiem.`;
+1. PULSE pilnuje regularności, nie kreatywności. Nie mówisz, jaką muzykę tworzyć, nie oceniasz utworów, nie zadajesz sztucznych zadań („napisz 8 wersów”). Nie jesteś menedżerem kariery ani marketingu.
+2. Opierasz się na danych z bloku <kontekst> i na tym, co osoba napisała. Gdy danych brakuje, mówisz to wprost. Odróżniasz „Z danych:” od „Hipoteza:”.
+3. Nie zmieniasz planu sam. Zmiany proponujesz narzędziem propose_plan_changes — osoba je zatwierdza. Nigdy nie usuwasz zobowiązań życiowych (praca, dojazdy, relacje, sprawy prywatne) i nie nadpisujesz ręcznych ustawień. Nie wypełniasz każdej wolnej chwili. Codzienna muzyka jest mile widziana, ale nie wymagana.
+4. Zmęczenie: najpierw regeneracja (woda, jedzenie, sen, chwila bez ekranu), lżejsza aktywność muzyczna tylko jako opcja. Choroba: plan się dostosowuje, to nie porażka. Nie diagnozujesz i nie zastępujesz lekarza; przy niepokojących lub przedłużających się objawach odsyłasz do lekarza.
+5. Po przerwie pomagasz wrócić bez nadrabiania zaległości i bez kar. Rozróżniasz realny brak możliwości (ciężki dzień, choroba) od odkładania mimo wolnego czasu — bez oceniania, z praktyczną radą (krótszy start, inna pora).
+6. Nauka jest opcjonalna. Lekcje polecasz tylko z katalogu Akademii (narzędzie recommend_lesson), książki tylko z katalogu (recommend_book), z krótkim „dlaczego teraz”. Czas nauki to nie dowód opanowania.
+7. Bezpieczeństwo głosu: żadnych ćwiczeń z bólem lub forsowaniem; technik przesterowanego krzyku nie uczysz — odsyłasz do nauczyciela śpiewu.
+8. Odpowiedź: maksymalnie ok. 120 słów, chyba że osoba prosi o więcej. Kończ jednym konkretnym następnym krokiem albo pytaniem.`;
 
 const SYSTEM_FULL = `${SYSTEM}\n\n${catalogText()}`;
 
@@ -66,12 +65,12 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
     },
   },
   {
-    name: 'recommend_exercise',
-    description: 'Pokazuje użytkownikowi kartę ćwiczenia z katalogu PULSE.',
+    name: 'recommend_lesson',
+    description: 'Pokazuje kartę lekcji z Akademii PULSE (klucz lekcji z katalogu).',
     strict: true,
     input_schema: {
-      type: 'object', additionalProperties: false, required: ['exercise_id', 'why'],
-      properties: { exercise_id: { type: 'string' }, why: { type: 'string' } },
+      type: 'object', additionalProperties: false, required: ['lesson_key', 'why'],
+      properties: { lesson_key: { type: 'string' }, why: { type: 'string' } },
     },
   },
   {
@@ -86,7 +85,7 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
 ];
 
 export interface MentorCard {
-  type: 'exercise' | 'book' | 'proposal';
+  type: 'exercise' | 'book' | 'proposal' | 'lesson' | 'action';
   id: string;
   why?: string;
   title?: string;
@@ -101,6 +100,7 @@ async function loadSnapshot(env: Env, userId: string): Promise<Snapshot> {
     events: r.events as never, sessions: r.sessions as never, attempts: r.attempts as never, skill_levels: r.skill_levels as never,
     projects: r.projects as never, goals: r.goals as never, milestones: r.milestones as never, books: r.books as never,
     promo_tasks: r.promo_tasks as never, care: r.care as never, proposals: r.proposals as never,
+    workflows: r.workflows as never, learning: r.learning as never, songs: r.songs as never,
   };
 }
 
@@ -117,7 +117,7 @@ const chatBody = z.object({
 mentorRoutes.post('/chat', async (c) => {
   if (!c.env.ANTHROPIC_API_KEY) return c.json({ error: 'not_configured' }, 503);
   const user = c.get('user');
-  if (!(await rateLimit(c.env, `mentor:${user.id}`, 40, 3600e3))) return c.json({ error: 'Limit rozmów z mentorem na tę godzinę został wyczerpany.' }, 429);
+  if (!(await rateLimit(c.env, `mentor:${user.id}`, 40, 3600e3))) return c.json({ error: 'Limit rozmów na tę godzinę został wyczerpany.' }, 429);
   const parsed = chatBody.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: 'invalid body' }, 400);
   const { message_id, content, mode } = parsed.data;
@@ -141,9 +141,9 @@ mentorRoutes.post('/chat', async (c) => {
   }
   while (messages.length && messages[0].role !== 'user') messages.shift();
   const ask = mode === 'weekly_review'
-    ? 'Przygotuj przegląd mijającego tygodnia: co zostało zrobione, które umiejętności były rozwijane, jakie były przeszkody, i jedną realistyczną zmianę na kolejny tydzień. Do 250 słów.'
+    ? 'Przygotuj krótkie spojrzenie na mijający tydzień: ile było muzyki i kiedy, co przeszkadzało (praca, energia, zdrowie), co z planu się udało. Zakończ jedną realistyczną zmianą na kolejny tydzień. Do 200 słów.'
     : mode === 'monthly_review'
-      ? 'Przygotuj przegląd ostatnich 4 tygodni: twórczość (czas, rezultaty), praca i regeneracja, postęp celów i roadmapy, nierównowagi w rozwoju. Zakończ dwiema realistycznymi zmianami na kolejny miesiąc. Do 300 słów.'
+      ? 'Przygotuj spojrzenie na ostatnie 4 tygodnie: rytm (dni z muzyką, przerwy i powroty), realizacja planu, praca i regeneracja, nauka. Zakończ dwiema realistycznymi zmianami. Do 250 słów.'
       : content;
   const userTurn: Anthropic.Beta.BetaMessageParam = {
     role: 'user',
@@ -169,7 +169,7 @@ mentorRoutes.post('/chat', async (c) => {
         tool_choice: { type: 'auto' },
         messages,
       });
-      if (res.stop_reason === 'refusal') { text = text || 'Mentor nie może odpowiedzieć na tę wiadomość.'; break; }
+      if (res.stop_reason === 'refusal') { text = text || 'Towarzysz nie może odpowiedzieć na tę wiadomość.'; break; }
       for (const b of res.content) if (b.type === 'text') text += (text ? '\n\n' : '') + b.text;
       const uses = res.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === 'tool_use');
       if (res.stop_reason !== 'tool_use' || !uses.length) break;
@@ -177,10 +177,10 @@ mentorRoutes.post('/chat', async (c) => {
       const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
       for (const u of uses) {
         const input = u.input as Record<string, unknown>;
-        if (u.name === 'recommend_exercise') {
-          const ok = typeof input.exercise_id === 'string' && !!EXERCISE_BY_ID[input.exercise_id];
-          if (ok) cards.push({ type: 'exercise', id: input.exercise_id as string, why: String(input.why ?? '') });
-          results.push({ type: 'tool_result', tool_use_id: u.id, content: ok ? 'Karta ćwiczenia pokazana.' : 'Nie ma takiego ćwiczenia w katalogu.', is_error: !ok });
+        if (u.name === 'recommend_lesson') {
+          const ok = typeof input.lesson_key === 'string' && !!LESSON_BY_KEY[input.lesson_key];
+          if (ok) cards.push({ type: 'lesson', id: input.lesson_key as string, why: String(input.why ?? '') });
+          results.push({ type: 'tool_result', tool_use_id: u.id, content: ok ? 'Karta lekcji pokazana.' : 'Nie ma takiej lekcji w katalogu.', is_error: !ok });
         } else if (u.name === 'recommend_book') {
           const ok = typeof input.catalog_key === 'string' && !!BOOK_BY_KEY[input.catalog_key];
           if (ok) cards.push({ type: 'book', id: input.catalog_key as string, why: String(input.why ?? '') });
@@ -202,10 +202,10 @@ mentorRoutes.post('/chat', async (c) => {
       messages.push({ role: 'user', content: results });
     }
   } catch (err) {
-    if (err instanceof Anthropic.AuthenticationError) return c.json({ error: 'Klucz API mentora jest nieprawidłowy.' }, 502);
+    if (err instanceof Anthropic.AuthenticationError) return c.json({ error: 'Klucz API jest nieprawidłowy.' }, 502);
     if (err instanceof Anthropic.RateLimitError) return c.json({ error: 'Dostawca AI ogranicza teraz zapytania. Spróbuj za chwilę.' }, 503);
     if (err instanceof Anthropic.APIError) return c.json({ error: `Błąd dostawcy AI (${err.status ?? '?'})` }, 502);
-    return c.json({ error: 'Nie udało się połączyć z mentorem.' }, 502);
+    return c.json({ error: 'Nie udało się połączyć z AI.' }, 502);
   }
 
   const userMsg = { id: `${message_id}_u`, updated_at: now, deleted_at: null, role: 'user', content: mode === 'weekly_review' ? 'Przegląd tygodnia' : mode === 'monthly_review' ? 'Przegląd miesiąca' : content, at: now, proposal_id: null, cards: [] };

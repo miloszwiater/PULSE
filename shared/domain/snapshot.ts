@@ -1,6 +1,6 @@
 import type {
   Attempt, Book, CareCheckin, DayState, Goal, Milestone, PEvent, Profile, Project, PromoTask,
-  Routine, RoutineException, Session, SkillLevel, Proposal,
+  Routine, RoutineException, Session, SkillLevel, Proposal, Workflow, Learning, Song,
 } from '../schema';
 
 /** Read-only view over the user's data that every domain function consumes. */
@@ -20,12 +20,15 @@ export interface Snapshot {
   promo_tasks: PromoTask[];
   care: CareCheckin[];
   proposals: Proposal[];
+  workflows: Workflow[];
+  learning: Learning[];
+  songs: Song[];
 }
 
 export const emptySnapshot = (): Snapshot => ({
   profile: null, routines: [], routine_exceptions: [], day_states: [], events: [], sessions: [],
   attempts: [], skill_levels: [], projects: [], goals: [], milestones: [], books: [], promo_tasks: [],
-  care: [], proposals: [],
+  care: [], proposals: [], workflows: [], learning: [], songs: [],
 });
 
 export interface Clock {

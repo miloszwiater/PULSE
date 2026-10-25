@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildMentorProposal, type MentorChange } from '../shared/domain/mentorProposals';
 import { buildMentorContext } from '../shared/domain/mentorContext';
-import type { PEvent } from '../shared/schema';
+import { songSchema, type PEvent } from '../shared/schema';
 import { clock, ev, MONDAY, routine, snap, profile } from './fixtures';
 
 const ch = (c: Partial<MentorChange>): MentorChange => ({ action: 'add', event_id: null, date: null, start: null, minutes: null, title: null, kind: null, exercise_id: null, ...c });
@@ -39,9 +39,11 @@ describe('mentor proposals are validated by rules, not trusted', () => {
 });
 
 describe('mentor context', () => {
-  it('states when text analysis is not allowed and contains no lyrics', () => {
-    const txt = buildMentorContext(snap({ profile: profile({ mentor_text_consent: false }) }), clock());
-    expect(txt).toMatch(/brak zgody — nie analizuj tekstów/);
+  it('never contains song lyrics or notes', () => {
+    const song = songSchema.parse({ id: 'so1', updated_at: 1, project_id: 'p1', title: 'Noc', lyrics: 'TAJNY_TEKST_123', notes: 'NOTATKA_456' });
+    const txt = buildMentorContext(snap({ profile: profile(), songs: [song] }), clock());
+    expect(txt).not.toContain('TAJNY_TEKST_123');
+    expect(txt).not.toContain('NOTATKA_456');
   });
   it('lists event ids so proposals can reference them', () => {
     const e = ev({ id: 'ev_abc', date: MONDAY, start_min: 1080, end_min: 1170 });

@@ -8,7 +8,7 @@ import { z } from 'zod';
 import type { AppEnv, Env } from './env';
 import { pull } from './sync';
 import type { Snapshot } from '../shared/domain/snapshot';
-import { dueReminders } from '../shared/domain/reminders';
+import { dueReminders, MAX_PER_DAY } from '../shared/domain/reminders';
 import type { Profile } from '../shared/schema';
 
 import { b64u, unb64u, encryptPayload } from '../shared/webpush';
@@ -89,10 +89,15 @@ export async function runScheduledReminders(env: Env): Promise<void> {
     const due = dueReminders(snap, now);
     if (!due.length) continue;
     const subs = (await env.DB.prepare('SELECT * FROM push_subscriptions WHERE user_id = ?').bind(user_id).all<Sub>()).results;
+    // Never more than MAX_PER_DAY reminders in 24 h — PULSE must not become noise.
+    const sent = await env.DB.prepare('SELECT COUNT(*) AS n FROM notification_log WHERE user_id = ? AND sent_at > ?').bind(user_id, now - 24 * 3600e3).first<{ n: number }>();
+    let budget = MAX_PER_DAY - (sent?.n ?? 0);
     for (const rem of due) {
+      if (budget <= 0) break;
       const ins = await env.DB.prepare('INSERT OR IGNORE INTO notification_log (user_id, key, sent_at, title, body) VALUES (?, ?, ?, ?, ?)')
         .bind(user_id, rem.key, now, rem.title, rem.body).run();
       if (!ins.meta.changes) continue; // already sent
+      budget--;
       await Promise.all(subs.map((s) => sendPush(env, s, { title: rem.title, body: rem.body, url: rem.url, tag: rem.key }).catch(() => 0)));
     }
   }

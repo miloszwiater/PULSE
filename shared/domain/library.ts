@@ -4,15 +4,15 @@ import { dayContext } from './day';
 import type { Snapshot } from './snapshot';
 
 export const BOOK_STATUS_LABEL: Record<BookStatus, string> = {
-  planned: 'Planowana',
+  planned: 'Polecona',
   bought: 'Kupiona',
-  reading: 'Czytam',
-  read: 'Przeczytana',
+  reading: 'W trakcie czytania',
+  read: 'Ukończona',
   paused: 'Odłożona',
   dropped: 'Rezygnuję',
 };
 
-/** Forward path; "bought" is optional and can be skipped. */
+/** Forward path: Polecona → Kupiona → W trakcie czytania → Ukończona ("bought" may be skipped, e.g. a library copy). */
 export const BOOK_FLOW: BookStatus[] = ['planned', 'bought', 'reading', 'read'];
 
 export interface DeadlineSuggestion { due: string; weeks: number; explanation: string }

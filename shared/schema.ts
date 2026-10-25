@@ -53,6 +53,9 @@ export type DayStatus = (typeof DAY_STATUSES)[number];
 export const PROJECT_STAGES = ['idea', 'sketch', 'demo', 'recording', 'mix', 'ready', 'released'] as const;
 export type ProjectStage = (typeof PROJECT_STAGES)[number];
 
+export const PROJECT_KINDS = ['single', 'ep', 'album', 'collection'] as const;
+export type ProjectKind = (typeof PROJECT_KINDS)[number];
+
 export const BOOK_STATUSES = ['planned', 'bought', 'reading', 'read', 'paused', 'dropped'] as const;
 export type BookStatus = (typeof BOOK_STATUSES)[number];
 
@@ -75,6 +78,21 @@ export const profileSchema = z.object({
   vision: text(1000).default(''),
   values: strList.default([]),
   scene: z.enum(['auto', 'night', 'rain', 'photo']).default('auto'),
+  /** Free description of the music the person makes (context for the companion and academy). */
+  music_style: text(1000).default(''),
+  /** Apps the person finds distracting — a checklist for the iOS Screen Time setup, PULSE cannot block them itself. */
+  focus_apps: strList.default([]),
+  /** Name of the iOS Shortcut started together with a focus session (empty = off). */
+  focus_shortcut: text(120).default(''),
+  /** Recurring distraction-free blocks of the day (mirrored by the person in iOS Screen Time / Focus). */
+  focus_blocks: z.array(z.object({
+    weekdays: z.array(z.number().int().min(0).max(6)).max(7),
+    start_min: minute,
+    end_min: minute,
+    label: text(60).default(''),
+  })).max(12).default([]),
+  /** Optional learning blocks the planner may propose per week (0 = never). */
+  learning_per_week: z.number().int().min(0).max(5).default(1),
   timezone: text(64).default('Europe/Warsaw'),
   wake_min: minute.default(450),
   bed_min: minute.default(1410),
@@ -132,6 +150,8 @@ export const eventSchema = z.object({
   source: z.enum(['user', 'planner', 'mentor', 'routine']).default('user'),
   category: z.enum(SKILL_CATEGORIES).nullable().default(null),
   exercise_id: text(64).nullable().default(null),
+  /** Academy lesson this block is meant for (optional learning). */
+  lesson_key: text(64).nullable().default(null),
   project_id: id.nullable().default(null),
   book_id: id.nullable().default(null),
   goal_id: id.nullable().default(null),
@@ -160,6 +180,46 @@ export const sessionSchema = z.object({
   outcome_note: text(2000).default(''),
   energy_after: z.number().int().min(1).max(5).nullable().default(null),
   focus_mode: z.boolean().default(false),
+  workflow_id: id.nullable().default(null),
+  /** Intended length chosen at start; null = open-ended. Never enforced. */
+  target_minutes: z.number().int().min(5).max(720).nullable().default(null),
+});
+
+/** A named, reusable way of starting a Creative Workflow session. */
+export const workflowSchema = z.object({
+  ...base,
+  name: text(60),
+  minutes: z.number().int().min(5).max(720).nullable().default(null),
+  focus: z.boolean().default(false),
+  tone: z.number().int().min(0).max(7).default(0),
+  intention: text(300).default(''),
+  position: z.number().int().default(0),
+  last_used_at: ms.nullable().default(null),
+});
+
+export const LEARNING_STATUSES = ['active', 'paused', 'done'] as const;
+
+/** Progress in the Music Academy: one row per started path (kind=path) or opened lesson (kind=lesson); id = catalog key. */
+export const learningSchema = z.object({
+  ...base,
+  kind: z.enum(['path', 'lesson']),
+  path_key: text(64),
+  status: z.enum(LEARNING_STATUSES),
+  started_at: ms.nullable().default(null),
+  done_at: ms.nullable().default(null),
+  last_opened_at: ms.nullable().default(null),
+  revisits: z.number().int().min(0).max(10000).default(0),
+  note: text(4000).default(''),
+});
+
+export const songSchema = z.object({
+  ...base,
+  project_id: id,
+  title: text(160),
+  lyrics: text(20000).default(''),
+  notes: text(4000).default(''),
+  position: z.number().int().default(0),
+  done: z.boolean().default(false),
 });
 
 export const attemptSchema = z.object({
@@ -193,6 +253,10 @@ export const projectSchema = z.object({
   release_date: date.nullable().default(null),
   last_worked_at: ms.nullable().default(null),
   archived: z.boolean().default(false),
+  kind: z.enum(PROJECT_KINDS).default('single'),
+  /** Small JPEG data URL (client-compressed), synced with the row. */
+  cover_data: z.string().max(300000).regex(/^(data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+)?$/).default(''),
+  tone: z.number().int().min(0).max(7).default(0),
 });
 
 export const goalSchema = z.object({
@@ -267,7 +331,7 @@ export const mentorMessageSchema = z.object({
   at: ms,
   proposal_id: id.nullable().default(null),
   cards: z.array(z.object({
-    type: z.enum(['exercise', 'book', 'proposal']),
+    type: z.enum(['exercise', 'book', 'proposal', 'lesson', 'action']),
     id: text(64),
     why: text(1000).optional(),
     title: text(200).optional(),
@@ -307,6 +371,9 @@ export const ENTITIES = {
   care: careSchema,
   mentor_messages: mentorMessageSchema,
   proposals: proposalSchema,
+  workflows: workflowSchema,
+  learning: learningSchema,
+  songs: songSchema,
 } as const;
 
 export type EntityName = keyof typeof ENTITIES;
@@ -328,6 +395,9 @@ export type PromoTask = z.infer<typeof promoTaskSchema>;
 export type CareCheckin = z.infer<typeof careSchema>;
 export type MentorMessage = z.infer<typeof mentorMessageSchema>;
 export type Proposal = z.infer<typeof proposalSchema>;
+export type Workflow = z.infer<typeof workflowSchema>;
+export type Learning = z.infer<typeof learningSchema>;
+export type Song = z.infer<typeof songSchema>;
 
 export interface EntityRows {
   profile: Profile;
@@ -346,11 +416,14 @@ export interface EntityRows {
   care: CareCheckin;
   mentor_messages: MentorMessage;
   proposals: Proposal;
+  workflows: Workflow;
+  learning: Learning;
+  songs: Song;
 }
 
 /** Columns stored as JSON text in D1. */
 export const JSON_COLUMNS: Partial<Record<EntityName, string[]>> = {
-  profile: ['genres', 'inspirations', 'strengths', 'weaknesses', 'focus_categories', 'reminders', 'techniques', 'values'],
+  profile: ['genres', 'inspirations', 'strengths', 'weaknesses', 'focus_categories', 'reminders', 'techniques', 'values', 'focus_apps', 'focus_blocks'],
   routines: ['weekdays'],
   sessions: ['pauses'],
   proposals: ['changes'],
@@ -364,6 +437,8 @@ export const BOOL_COLUMNS: Partial<Record<EntityName, string[]>> = {
   sessions: ['focus_mode'],
   attempts: ['completed'],
   projects: ['archived'],
+  workflows: ['focus'],
+  songs: ['done'],
 };
 
 export const opSchema = z.object({

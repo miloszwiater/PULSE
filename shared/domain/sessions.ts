@@ -88,6 +88,7 @@ export function coverageCandidates(session: Session, events: PEvent[], tz: strin
   for (const e of events) {
     if (e.deleted_at != null || e.status !== 'planned') continue;
     if (e.kind !== 'music' && e.kind !== 'training') continue;
+    if (e.lesson_key) continue; // learning is its own thing — a creative session never "covers" a lesson
     if (weekStart(e.date) !== wk) continue;
     if (e.id === session.event_id) continue;
     const dayDiff = daysBetween(sDate, e.date);
@@ -108,8 +109,8 @@ export function coverageCandidates(session: Session, events: PEvent[], tz: strin
     out.push({ event: e, score, suggested: false, reason: reasons.join(', ') });
   }
   out.sort((a, b) => b.score - a.score);
-  // Budget: one covered commitment per started 60 min of real work.
-  let budget = Math.max(0, Math.floor(minutes / 60));
+  // Budget: one covered commitment per full hour of real work (at least one for a counted session).
+  let budget = session.active_seconds >= MIN_COUNTED_SECONDS ? Math.max(1, Math.floor(minutes / 60)) : 0;
   for (const c of out) {
     const planned = c.event.end_min - c.event.start_min;
     if (budget <= 0) break;
@@ -135,4 +136,14 @@ export function categoryOfSession(s: Session): SkillCategory | null {
     case 'production': return 'production';
     default: return null;
   }
+}
+
+/**
+ * Planned items a just-finished session fulfils without asking: only the
+ * same day, only when the session was long enough. Anything else stays in
+ * the plan untouched (the person can still mark it by hand).
+ */
+export function autoCoverage(session: Session, events: PEvent[], tz: string): PEvent[] {
+  const day = sessionDate(session, tz);
+  return coverageCandidates(session, events, tz).filter((c) => c.suggested && c.event.date === day).map((c) => c.event);
 }

@@ -1,10 +1,11 @@
 import type { PEvent, Proposal } from '../schema';
-import { EXERCISE_BY_ID, CATEGORY_SHORT } from '../catalog/exercises';
-import { addDays, hhmm, overlaps, plDate, weekDates, weekStart, type Interval } from '../time';
+import { EXERCISE_BY_ID } from '../catalog/exercises';
+import { addDays, addMonths, daysBetween, hhmm, monthStart, overlaps, plDate, weekDates, weekStart, type Interval } from '../time';
+import { nextLessonToSuggest } from './academy';
+import { returnState } from './workflow';
 import { dayContext, RULES, type DayContext } from './day';
 import { weekStats } from './metrics';
 import { alive, newId, type Clock, type Snapshot } from './snapshot';
-import { recommendExercises } from './training';
 
 const round15 = (n: number) => Math.round(n / 15) * 15;
 const ceil15 = (n: number) => Math.ceil(n / 15) * 15;
@@ -21,7 +22,7 @@ function makeEvent(partial: Partial<PEvent> & Pick<PEvent, 'kind' | 'title' | 'd
   return {
     id: newId('ev'), updated_at: now, deleted_at: null, status: 'planned', priority: 2, flexible: true,
     source: 'planner', category: null, exercise_id: null, project_id: null, book_id: null, goal_id: null,
-    session_id: null, moved_to: null, proposal_id: null, notes: '', ...partial,
+    session_id: null, moved_to: null, proposal_id: null, notes: '', lesson_key: null, ...partial,
   };
 }
 
@@ -42,21 +43,38 @@ function pickWindow(ctx: DayContext, minutes: number): Interval | null {
   return fits.reduce((a, b) => (b.end - b.start > a.end - a.start ? b : a));
 }
 
+const isLearning = (e: PEvent) => !!e.lesson_key;
+const isMusic = (e: PEvent) => (e.kind === 'music' || e.kind === 'training') && !isLearning(e);
+
+export interface PlanOptions {
+  /** Plan the whole week even if it is in the future (month planning). */
+  weekOf?: string;
+  /** Working copy events already proposed for earlier weeks. */
+  extra?: PEvent[];
+}
+
 /**
  * Generates a proposal for the rest of the week. It plans only as many
- * sessions as are still needed for the (status-adjusted) weekly target,
- * one per day at most, spread out, sized by each day's capacity.
+ * music sessions as are still needed for the (status-adjusted) weekly
+ * target, one per day at most, spread out, sized by each day's capacity.
+ * Long sessions already done count double for the planner (not for
+ * regularity), so a big spontaneous night lowers the pressure.
+ * In return mode (≥7 days without music) it proposes at most two short
+ * sessions and nothing to catch up. Learning blocks are optional extras.
  */
 export function generateWeekPlan(snap: Snapshot, clock: Clock, weekOf: string = clock.today): WeekPlan {
   const now = clock.nowMs;
   const stats = weekStats(snap, weekOf, clock.today);
   const dates = weekDates(weekOf).filter((d) => d >= clock.today);
-  const contexts = dates.map((d) => dayContext(snap, d, clock));
-  const plannedRemaining = stats.commitments.filter((e) => e.status === 'planned' && e.date >= clock.today && (e.kind === 'music' || e.kind === 'training')).length;
-  const needed = Math.max(0, stats.adjustedTarget - stats.sessionCount - plannedRemaining);
+  const contexts = dates.map((d) => dayContext(snap, d, d === clock.today ? clock : undefined));
+  const ret = returnState(snap, clock.today);
+  const plannedRemaining = stats.commitments.filter((e) => e.status === 'planned' && e.date >= clock.today && isMusic(e)).length;
+  const longCredit = stats.sessions.filter((x) => x.active_seconds >= RULES.longSessionMinutes * 60).length;
+  let needed = Math.max(0, stats.adjustedTarget - stats.sessionCount - longCredit - plannedRemaining);
+  if (ret.active) needed = Math.min(needed, 2);
   const notes: DayNote[] = [];
   const chosen = new Set<string>();
-  const hasSession = (d: string) => chosen.has(d) || contexts.find((c) => c.date === d)?.commitments.some((e) => e.kind === 'music' || e.kind === 'training');
+  const hasSession = (d: string) => chosen.has(d) || contexts.find((c) => c.date === d)?.commitments.some(isMusic);
 
   const scoreOf = (c: DayContext) => {
     let s = c.mode === 'long' ? 3 : c.mode === 'normal' ? 2 : c.mode === 'light' ? 0.5 : -99;
@@ -79,49 +97,54 @@ export function generateWeekPlan(snap: Snapshot, clock: Clock, weekOf: string = 
     picks.push(best);
   }
 
-  const recs = recommendExercises(snap, clock.today, { limit: 8 });
-  const projects = alive(snap.projects).filter((p) => !p.archived && p.stage !== 'released').sort((a, b) => (b.last_worked_at ?? 0) - (a.last_worked_at ?? 0));
   const events: PEvent[] = [];
   picks.sort((a, b) => a.date.localeCompare(b.date));
-  let recIdx = 0;
-  picks.forEach((ctx, i) => {
+  for (const ctx of picks) {
     const preferred = snap.profile?.session_default_min ?? 90;
     let minutes = ctx.mode === 'light' ? RULES.lightMax : ctx.mode === 'long' ? Math.max(preferred, 120) : preferred;
+    if (ret.active) minutes = Math.min(minutes, 45);
     minutes = Math.max(RULES.minSessionMinutes, round15(Math.min(minutes, ctx.remainingMinutes)));
     const w = pickWindow(ctx, minutes);
-    if (!w) { notes.push({ date: ctx.date, text: 'Brak okna o potrzebnej długości.', planned: false }); return; }
+    if (!w) { notes.push({ date: ctx.date, text: 'Brak okna o potrzebnej długości.', planned: false }); continue; }
     const start = placeIn(w, minutes, ctx);
-    const train = i % 2 === 0 || !projects.length;
-    if (train) {
-      const rec = recs.find((r, j) => j >= recIdx && r.exercise.minutes <= minutes) ?? recs[recIdx];
-      recIdx++;
-      const ex = rec?.exercise;
+    events.push(makeEvent({
+      kind: 'music', title: ret.active ? 'Krótki powrót do muzyki' : 'Czas na muzykę',
+      date: ctx.date, start_min: start, end_min: start + minutes, priority: ctx.mode === 'light' ? 3 : 2,
+      notes: ret.active ? 'Bez nadrabiania — wystarczy usiąść i zacząć.' : '',
+    }, now));
+    notes.push({ date: ctx.date, text: `${ctx.reason} Muzyka: ${hhmm(start)}–${hhmm(start + minutes)}${ctx.mode === 'light' ? ' (opcjonalnie)' : ''}.`, planned: true });
+  }
+
+  // Optional learning: only with an active path, never in return mode, never on a music day.
+  const perWeek = snap.profile?.learning_per_week ?? 1;
+  const lesson = nextLessonToSuggest(snap);
+  const learningPlanned = alive(snap.events).filter((e) => isLearning(e) && weekStart(e.date) === weekStart(weekOf) && !['cancelled', 'moved'].includes(e.status)).length;
+  if (lesson && !ret.active && perWeek > learningPlanned) {
+    const pool = contexts.filter((c) => (c.mode === 'normal' || c.mode === 'long') && !hasSession(c.date)
+      && !alive(snap.events).some((e) => e.date === c.date && isLearning(e)));
+    pool.sort((a, b) => b.remainingMinutes - a.remainingMinutes || a.date.localeCompare(b.date));
+    for (const ctx of pool.slice(0, perWeek - learningPlanned)) {
+      const len = Math.max(RULES.minSessionMinutes, ceil15(Math.min(lesson.minutes, 60)));
+      if (ctx.remainingMinutes < len) continue;
+      const w = pickWindow(ctx, len);
+      if (!w) continue;
+      const start = placeIn(w, len, ctx);
       events.push(makeEvent({
-        kind: ex ? 'training' : 'music',
-        title: ex ? ex.title : 'Sesja twórcza',
-        category: ex?.category ?? null,
-        exercise_id: ex?.id ?? null,
-        date: ctx.date, start_min: start, end_min: start + minutes,
-        priority: ctx.mode === 'light' ? 3 : 2,
-        notes: ex ? `${CATEGORY_SHORT[ex.category]} · ok. ${ex.minutes} min ćwiczenia, reszta czasu na swobodne tworzenie.${rec.reasons.length ? ` Dlaczego: ${rec.reasons.join('; ')}.` : ''}` : '',
+        kind: 'training', title: `Nauka: ${lesson.title}`, lesson_key: lesson.key,
+        date: ctx.date, start_min: start, end_min: start + len, priority: 3,
+        notes: 'Opcjonalna nauka z Akademii. Można pominąć bez konsekwencji.',
       }, now));
-    } else {
-      const p = projects[(i >> 1) % projects.length];
-      events.push(makeEvent({
-        kind: 'music', title: `Praca nad: ${p.title}`, project_id: p.id,
-        date: ctx.date, start_min: start, end_min: start + minutes, priority: ctx.mode === 'light' ? 3 : 2,
-        notes: `Projekt na etapie „${p.stage}”.`,
-      }, now));
+      chosen.add(ctx.date);
+      notes.push({ date: ctx.date, text: `Opcjonalna nauka: ${lesson.title}, ${hhmm(start)}–${hhmm(start + len)}.`, planned: true });
     }
-    notes.push({ date: ctx.date, text: `${ctx.reason} Plan: ${hhmm(start)}–${hhmm(start + minutes)}${ctx.mode === 'light' ? ' (opcjonalnie)' : ''}.`, planned: true });
-  });
+  }
 
   for (const ctx of contexts) {
     if (chosen.has(ctx.date)) continue;
     let text = ctx.reason;
     if (ctx.mode !== 'none') {
-      if (hasSession(ctx.date)) text = 'Masz już zaplanowaną sesję.';
-      else if (needed === 0 || picks.length >= needed) text = 'Cel tygodnia jest już pokryty — dzień zostaje wolny.';
+      if (hasSession(ctx.date)) text = 'Masz już zaplanowany czas na muzykę.';
+      else if (needed === 0 || picks.length >= needed) text = 'Rytm tygodnia jest pokryty — dzień zostaje wolny.';
       else if (ctx.mode === 'light') text = `${ctx.reason} Nie planuję — ten dzień lepiej zostawić na odpoczynek.`;
     }
     notes.push({ date: ctx.date, text, planned: false });
@@ -132,13 +155,71 @@ export function generateWeekPlan(snap: Snapshot, clock: Clock, weekOf: string = 
   if (!events.length) return { proposal: null, notes, target };
   const pid = newId('pr');
   for (const e of events) e.proposal_id = pid;
+  const why: string[] = [];
+  why.push(`Rytm: ${stats.adjustedTarget} sesji w tym tygodniu${stats.adjustedTarget !== stats.baseTarget ? ` (z ${stats.baseTarget}, skorygowane o ${stats.protectedDays} dni chronionych)` : ''}.`);
+  why.push(`Zrobione: ${stats.sessionCount}${longCredit ? ` (w tym ${longCredit} długa — liczy się podwójnie przy planowaniu)` : ''}, już zaplanowane: ${plannedRemaining}.`);
+  if (ret.active) why.push(`Tryb powrotu: ${ret.gapDays} dni bez muzyki — proponuję mało i krótko, bez nadrabiania.`);
+  why.push('To propozycja: każdy blok można przesunąć, skrócić albo odrzucić.');
   const proposal: Proposal = {
     id: pid, updated_at: now, deleted_at: null, source: 'planner', status: 'pending', decided_at: null,
     title: `Plan tygodnia od ${plDate(weekStart(weekOf))}`,
-    rationale: `Cel: ${stats.adjustedTarget} sesji${stats.adjustedTarget !== stats.baseTarget ? (stats.preStartDays > 0 ? ` (z ${stats.baseTarget} — pierwszy tydzień programu liczony proporcjonalnie)` : ` (z ${stats.baseTarget}, skorygowany o ${stats.protectedDays} dni chronionych)`) : ''}. Zrobione: ${stats.sessionCount}, już zaplanowane: ${plannedRemaining}. Dokładam ${events.length}.`,
+    rationale: why.join(' '),
     changes: events.map((e) => ({ entity: 'events', before: null, after: e as unknown as Record<string, unknown>, label: `${plDate(e.date)}, ${hhmm(e.start_min)}–${hhmm(e.end_min)} · ${e.title}` })),
   };
   return { proposal, notes, target };
+}
+
+/**
+ * Month plan = the week planner run week by week until the end of the month,
+ * each week seeing the blocks proposed for the previous ones. One proposal,
+ * so the person approves (or rejects) the month as a whole and can undo it.
+ */
+export function generateMonthPlan(snap: Snapshot, clock: Clock): { proposal: Proposal | null; weeks: { weekStart: string; planned: number }[] } {
+  const end = addDays(monthStart(addMonths(clock.today, 1)), -1);
+  let work: Snapshot = { ...snap, events: [...snap.events] };
+  const all: Proposal['changes'] = [];
+  const weeks: { weekStart: string; planned: number }[] = [];
+  for (let ws = weekStart(clock.today); ws <= end; ws = addDays(ws, 7)) {
+    const plan = generateWeekPlan(work, clock, ws < clock.today ? clock.today : ws);
+    const evs = (plan.proposal?.changes ?? []).map((c) => c.after as unknown as PEvent).filter((e) => e.date <= end);
+    weeks.push({ weekStart: ws, planned: evs.length });
+    work = { ...work, events: [...work.events, ...evs] };
+    all.push(...(plan.proposal?.changes ?? []).filter((c) => (c.after as unknown as PEvent).date <= end));
+  }
+  if (!all.length) return { proposal: null, weeks };
+  const pid = newId('pr');
+  const changes = all.map((c) => ({ ...c, after: { ...c.after, proposal_id: pid } }));
+  return {
+    weeks,
+    proposal: {
+      id: pid, updated_at: clock.nowMs, deleted_at: null, source: 'planner', status: 'pending', decided_at: null,
+      title: `Plan do końca miesiąca (${plDate(end)})`,
+      rationale: `Tydzień po tygodniu, według grafiku pracy, dni wolnych i energii. ${weeks.map((w) => `od ${plDate(w.weekStart)}: ${w.planned}`).join(', ')}. Plan dalszych tygodni jest szkicem — PULSE zaproponuje korekty, gdy grafik się zmieni.`,
+      changes,
+    },
+  };
+}
+
+/** Planned items from a break that are now in the past: closing them is offered, never automatic. */
+export function staleAfterBreak(snap: Snapshot, clock: Clock): PEvent[] {
+  return alive(snap.events).filter((e) => e.status === 'planned' && e.date < clock.today
+    && ['music', 'training', 'reading', 'promo'].includes(e.kind) && daysBetween(e.date, clock.today) <= 60);
+}
+
+export function closeStaleProposal(snap: Snapshot, clock: Clock): Proposal | null {
+  const stale = staleAfterBreak(snap, clock);
+  if (!stale.length) return null;
+  const pid = newId('pr');
+  return {
+    id: pid, updated_at: clock.nowMs, deleted_at: null, source: 'planner', status: 'pending', decided_at: null,
+    title: 'Zamknij stare plany bez kary',
+    rationale: `${stale.length} zaplanowanych bloków z przeszłości nie zostało oznaczonych. Zamknięcie ich jako usprawiedliwione czyści plan i nie wpływa na rytm — nic nie trzeba nadrabiać.`,
+    changes: stale.map((e) => ({
+      entity: 'events', before: e as unknown as Record<string, unknown>,
+      after: { ...e, status: 'excused', updated_at: clock.nowMs, proposal_id: pid } as unknown as Record<string, unknown>,
+      label: `${plDate(e.date)} · ${e.title} → zamknięte bez kary`,
+    })),
+  };
 }
 
 export interface Conflict {
@@ -180,7 +261,7 @@ export function detectConflicts(snap: Snapshot, clock: Clock, days = 14): Confli
  * everything except high-priority items: the weekly target already shrinks,
  * so nothing piles up.
  */
-export function resolveConflicts(snap: Snapshot, clock: Clock, conflicts: Conflict[]): Proposal | null {
+export function resolveConflicts(snap: Snapshot, clock: Clock, conflicts: Conflict[], opts: { preferMove?: boolean; title?: string } = {}): Proposal | null {
   if (!conflicts.length) return null;
   const now = clock.nowMs;
   const pid = newId('pr');
@@ -204,7 +285,7 @@ export function resolveConflicts(snap: Snapshot, clock: Clock, conflicts: Confli
     const excuse = (why: string) => push(before,
       { ...e, status: 'excused', updated_at: now, proposal_id: pid, notes: [e.notes, why].filter(Boolean).join('\n') },
       `${e.title} (${plDate(e.date)}) → usprawiedliwione: ${why}`);
-    if (c.type === 'day_status' && e.priority > 1) { excuse(c.reason); continue; }
+    if (c.type === 'day_status' && e.priority > 1 && !opts.preferMove) { excuse(c.reason); continue; }
 
     // 1) same day
     if (c.type !== 'day_status') {
@@ -242,7 +323,7 @@ export function resolveConflicts(snap: Snapshot, clock: Clock, conflicts: Confli
   }
   return {
     id: pid, updated_at: now, deleted_at: null, source: 'conflict', status: 'pending', decided_at: null,
-    title: conflicts.length === 1 ? 'Konflikt w planie' : `${conflicts.length} konflikty w planie`,
+    title: opts.title ?? (conflicts.length === 1 ? 'Konflikt w planie' : `${conflicts.length} konflikty w planie`),
     rationale: conflicts.map((c) => `• ${c.event.title} (${plDate(c.event.date)}): ${c.reason}`).join('\n'),
     changes,
   };

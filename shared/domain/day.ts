@@ -43,6 +43,8 @@ export const RULES = {
   eveningLead: 45, // before bed
   minSessionMinutes: 30,
   lightMax: 30,
+  longSessionMinutes: 180, // a session this long earns a lighter next day
+  afterLongMax: 60,
 };
 
 const LIVE_STATUSES = new Set(['planned', 'done', 'partial', 'covered']);
@@ -113,9 +115,11 @@ export function dayContext(snap: Snapshot, date: string, clock?: Clock, opts: { 
   const commitments = commitmentsFor(snap, date).filter((e) => e.id !== opts.ignoreEventId);
   const committedMinutes = commitments.reduce((s, e) => s + (e.end_min - e.start_min), 0);
   const tz = p?.timezone ?? 'Europe/Warsaw';
-  const doneMinutes = Math.round(alive(snap.sessions)
-    .filter((x) => x.status === 'finished' && zoned(x.started_at, tz).date === date)
+  const minutesOn = (d: string) => Math.round(alive(snap.sessions)
+    .filter((x) => x.status === 'finished' && zoned(x.started_at, tz).date === d)
     .reduce((t, x) => t + x.active_seconds, 0) / 60);
+  const doneMinutes = minutesOn(date);
+  const yesterdayMinutes = minutesOn(addDays(date, -1));
 
   const busy: Interval[] = blocks.map((b) => {
     const after = b.kind === 'work' || b.kind === 'commute' ? RULES.recoveryAfterWork : RULES.bufferAroundBlocks;
@@ -140,6 +144,12 @@ export function dayContext(snap: Snapshot, date: string, clock?: Clock, opts: { 
   else if (workMinutes >= RULES.longWorkMinutes) { mode = 'normal'; max = 75; reason = 'Długi dzień pracy — krótsza sesja po regeneracji.'; }
   else if (workMinutes > 0) { mode = 'normal'; max = 120; reason = 'Dzień z pracą — jedna sesja po odpoczynku.'; }
   else { mode = 'long'; max = 180; reason = 'Dzień bez pracy — miejsce na dłuższe tworzenie.'; }
+
+  if ((mode === 'normal' || mode === 'long') && yesterdayMinutes >= RULES.longSessionMinutes) {
+    mode = 'normal';
+    max = Math.min(max, RULES.afterLongMax);
+    reason = `Wczoraj ${Math.round(yesterdayMinutes / 60)} h tworzenia — dziś lżej albo odpoczynek.`;
+  }
 
   if (mode !== 'none' && largest < RULES.minSessionMinutes) {
     mode = 'none';

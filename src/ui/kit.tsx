@@ -61,11 +61,19 @@ export function Sheet({ open, onClose, title, children, footer, tall }: { open: 
     // Focus the dialog itself (or an explicit [data-autofocus]) — avoids a stray focus ring on the close button.
     const t = setTimeout(() => (ref.current?.querySelector<HTMLElement>('[data-autofocus]') ?? ref.current)?.focus({ preventScroll: true }), 60);
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    // iOS: keep the focused field visible above the software keyboard.
+    const onFocus = (e: FocusEvent) => {
+      const el = e.target as HTMLElement;
+      if (el.matches('input, textarea, select')) setTimeout(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }), 320);
+    };
+    ref.current?.addEventListener('focusin', onFocus);
+    const node = ref.current;
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
     return () => {
       clearTimeout(t);
       document.removeEventListener('keydown', onKey);
+      node?.removeEventListener('focusin', onFocus);
       document.body.style.overflow = '';
       prev?.focus?.({ preventScroll: true });
     };

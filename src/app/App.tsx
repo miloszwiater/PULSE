@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { api, ApiError } from '../data/api';
 import { clearLocal, lastUser, loadLocal, useStore, type AuthUser } from '../data/store';
 import { startSyncLoop, syncNow } from '../data/sync';
@@ -13,19 +13,21 @@ import { PlanScreen } from '../screens/plan/PlanScreen';
 import { CreateScreen } from '../screens/create/CreateScreen';
 import { SessionScreen } from '../screens/create/SessionScreen';
 import { ProjectsScreen, ProjectScreen } from '../screens/create/Projects';
-import { GrowthScreen } from '../screens/growth/GrowthScreen';
-import { SkillScreen } from '../screens/growth/SkillScreen';
-import { LibraryScreen } from '../screens/growth/LibraryScreen';
-import { StyleScreen } from '../screens/growth/StyleScreen';
-import { StatsScreen } from '../screens/growth/StatsScreen';
-import { CareerScreen } from '../screens/career/CareerScreen';
-import { RoadmapScreen } from '../screens/career/RoadmapScreen';
-import { PromotionScreen } from '../screens/career/PromotionScreen';
-import { GoalsScreen } from '../screens/career/GoalsScreen';
-import { MentorScreen } from '../screens/MentorScreen';
-import { CareScreen } from '../screens/CareScreen';
-import { SettingsScreen } from '../screens/SettingsScreen';
 import { Splash } from './Splash';
+
+// Less frequent screens load on demand; Start/Plan/Twórz/Sesja stay in the main bundle.
+const GrowthScreen = lazy(() => import('../screens/growth/GrowthScreen').then((m) => ({ default: m.GrowthScreen })));
+const SkillScreen = lazy(() => import('../screens/growth/SkillScreen').then((m) => ({ default: m.SkillScreen })));
+const LibraryScreen = lazy(() => import('../screens/growth/LibraryScreen').then((m) => ({ default: m.LibraryScreen })));
+const StyleScreen = lazy(() => import('../screens/growth/StyleScreen').then((m) => ({ default: m.StyleScreen })));
+const StatsScreen = lazy(() => import('../screens/growth/StatsScreen').then((m) => ({ default: m.StatsScreen })));
+const CareerScreen = lazy(() => import('../screens/career/CareerScreen').then((m) => ({ default: m.CareerScreen })));
+const RoadmapScreen = lazy(() => import('../screens/career/RoadmapScreen').then((m) => ({ default: m.RoadmapScreen })));
+const PromotionScreen = lazy(() => import('../screens/career/PromotionScreen').then((m) => ({ default: m.PromotionScreen })));
+const GoalsScreen = lazy(() => import('../screens/career/GoalsScreen').then((m) => ({ default: m.GoalsScreen })));
+const MentorScreen = lazy(() => import('../screens/MentorScreen').then((m) => ({ default: m.MentorScreen })));
+const CareScreen = lazy(() => import('../screens/CareScreen').then((m) => ({ default: m.CareScreen })));
+const SettingsScreen = lazy(() => import('../screens/SettingsScreen').then((m) => ({ default: m.SettingsScreen })));
 
 let loopStarted = false;
 
@@ -125,7 +127,7 @@ function Shell() {
   }
   return (
     <div className="shell" data-tab={tabOf(path)}>
-      <main key={seg[0] ?? 'start'} className="shell__main">{screen}</main>
+      <main key={seg[0] ?? 'start'} className="shell__main"><Suspense fallback={<div className="screen" aria-busy="true" />}>{screen}</Suspense></main>
       {!fullscreen && <ActiveSessionPill />}
       {!fullscreen && <TabBar />}
       <Toaster />

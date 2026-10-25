@@ -125,7 +125,7 @@
 .week-figs { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-3); margin: var(--s-4) 0 var(--s-2); }
 .week-figs div { display: grid; gap: 2px; }
 .week-figs dt { color: var(--text-3); font-size: var(--fs-xs); }
-.week-figs dd { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: var(--fs-lg); letter-spacing: -0.02em; }
+.week-figs dd { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: var(--fs-md); letter-spacing: -0.02em; white-space: nowrap; }
 
 .insight { display: grid; gap: var(--s-2); padding: var(--s-4) 0; border-top: 1px solid var(--line); }
 .insight:first-child { border-top: 0; padding-top: 0; }

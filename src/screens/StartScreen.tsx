@@ -69,7 +69,7 @@ export function StartScreen() {
     headline = ctx.mode === 'light' ? 'Dziś najwyżej coś lekkiego.' : 'Dziś niewiele wolnego czasu.';
     detail = ctx.reason;
   }
-  if (doneMinutes > 0) detail = `Dziś już ${durationLabel(doneMinutes)} pracy. ${detail}`;
+  if (doneMinutes > 0) detail = `Dziś już ${durationLabel(doneMinutes)} tworzenia. ${detail}`;
 
   const openConflicts = () => setProposal(resolveConflicts(snap, clock, conflicts));
 

@@ -1,6 +1,6 @@
 import type { DayStatus, EventKind, PEvent } from '../schema';
 import { BLOCKING_KINDS, COMMITMENT_KINDS } from '../schema';
-import { addDays, freeWindows, mergeIntervals, weekday, type Interval } from '../time';
+import { addDays, freeWindows, mergeIntervals, weekday, zoned, type Interval } from '../time';
 import { alive, type Clock, type Snapshot } from './snapshot';
 
 export type EffectiveStatus = DayStatus | 'low';
@@ -23,6 +23,8 @@ export interface DayContext {
   privateMinutes: number;
   commitments: PEvent[];
   committedMinutes: number;
+  /** Creative time already logged this day (finished sessions). */
+  doneMinutes: number;
   mode: CapacityMode;
   /** Maximum minutes of development work that is reasonable this day. */
   maxMinutes: number;
@@ -110,6 +112,10 @@ export function dayContext(snap: Snapshot, date: string, clock?: Clock, opts: { 
   const privateMinutes = minutesOf(blocks, ['private', 'relationship']);
   const commitments = commitmentsFor(snap, date).filter((e) => e.id !== opts.ignoreEventId);
   const committedMinutes = commitments.reduce((s, e) => s + (e.end_min - e.start_min), 0);
+  const tz = p?.timezone ?? 'Europe/Warsaw';
+  const doneMinutes = Math.round(alive(snap.sessions)
+    .filter((x) => x.status === 'finished' && zoned(x.started_at, tz).date === date)
+    .reduce((t, x) => t + x.active_seconds, 0) / 60);
 
   const busy: Interval[] = blocks.map((b) => {
     const after = b.kind === 'work' || b.kind === 'commute' ? RULES.recoveryAfterWork : RULES.bufferAroundBlocks;
@@ -143,7 +149,7 @@ export function dayContext(snap: Snapshot, date: string, clock?: Clock, opts: { 
   max = Math.min(max, largest);
   return {
     date, status, statusSource: source, blocks, workMinutes, privateMinutes, commitments, committedMinutes,
-    mode, maxMinutes: max, remainingMinutes: Math.max(0, max - committedMinutes), windows, reason,
+    mode, maxMinutes: max, remainingMinutes: Math.max(0, max - committedMinutes - doneMinutes), doneMinutes, windows, reason,
   };
 }
 

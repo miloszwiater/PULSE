@@ -1,0 +1,36 @@
+// Screenshots of interactive states (session, finish sheet, event sheet, exercise sheet).
+import { chromium, devices } from '@playwright/test';
+const out = process.argv[2];
+const BASE = process.env.BASE ?? 'http://localhost:5173';
+const browser = await chromium.launch();
+const ctx = await browser.newContext({ ...devices['iPhone 13'], locale: 'pl-PL', timezoneId: 'Europe/Warsaw' });
+const page = await ctx.newPage();
+const errs = [];
+page.on('pageerror', (e) => errs.push(String(e)));
+await page.clock.install();
+const email = `qa${Date.now()}@pulse.test`;
+await page.request.post(BASE + '/api/auth/register', { headers: { 'x-pulse': '1' }, data: { email, password: 'haslo-testowe-123', name: 'Miłosz', code: 'dev-invite' } });
+await page.goto(BASE + '/');
+for (let i = 0; i < 6; i++) { await page.locator('.onb__foot .btn--primary').click(); await page.waitForTimeout(150); }
+await page.goto(BASE + '/rozwoj/obszar/songwriting?ex=sw-image-shift');
+await page.waitForTimeout(600);
+await page.screenshot({ path: `${out}/q_exercise.png` });
+await page.getByRole('button', { name: 'Zacznij teraz' }).click();
+await page.clock.fastForward('01:12:40');
+await page.waitForTimeout(400);
+await page.screenshot({ path: `${out}/q_session.png`, fullPage: true });
+await page.getByRole('button', { name: 'Zakończ' }).click();
+await page.waitForTimeout(600);
+await page.screenshot({ path: `${out}/q_finish.png` });
+await page.getByRole('button', { name: 'Zapisz sesję' }).click();
+await page.waitForTimeout(800);
+await page.goto(BASE + '/plan');
+await page.getByRole('button', { name: 'Dodaj do planu' }).click();
+await page.waitForTimeout(600);
+await page.screenshot({ path: `${out}/q_event.png` });
+await page.keyboard.press('Escape');
+await page.goto(BASE + '/');
+await page.waitForTimeout(2000);
+await page.screenshot({ path: `${out}/q_start_after.png`, fullPage: true });
+console.log(errs.join('\n') || 'no errors');
+await browser.close();

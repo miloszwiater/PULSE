@@ -1,5 +1,23 @@
 # PULSE — specyfikacja produktu
 
+## Wersja 3 (obowiązuje) — „PULSE pilnuje regularności, nie kreatywności”
+
+Wersja 3 zastępuje wszędzie tam, gdzie się różni, opis z wersji 1 poniżej (zachowanego jako historia decyzji).
+
+- **Bez terminu końcowego.** Nie ma programu 365 dni, roadmapy kariery, promocji ani celów biznesowych. PULSE nie jest menedżerem kariery ani marketingu i nie mówi, jaką muzykę tworzyć.
+- **Creative Workflow (najważniejsza funkcja).** Jedno dotknięcie na zakładce Twórz uruchamia sesję; opcjonalnie długość (bez limitu / 25 / 45 / 60 / 90 / 120 min — tylko zamiar) i tryb skupienia. Własne workflow: nazwa, preferowana długość, skupienie, kolor, przypomnienie dla siebie. Pauza/wznowienie/zakończenie; czas wyłącznie z timestampów. „Zakończ” zapisuje od razu — bez formularza, kategorii i wymaganego rezultatu; notatka opcjonalna. Sesja automatycznie zalicza zaplanowany na ten sam dzień blok muzyki (z „Cofnij”). Sesje dopisywane ręcznie, historia z edycją notatki i usuwaniem (z cofnięciem).
+- **Planowanie.** Grafik pracy (stały + wyjątki + pojedyncze zmiany), dojazdy, sen, życie prywatne, energia, historia. Plan tygodnia i miesiąca jako propozycja do akceptacji. Rytm tygodniowy (zachęta, nie wymóg). Długa sesja (≥3 h) → następny dzień lżejszy i liczy się podwójnie przy planowaniu (nie w regularności). Tryb powrotu po ≥7 dniach przerwy: najwyżej 2 krótkie sesje, bez nadrabiania; stare niezamknięte bloki można zamknąć bez kary. Pominięte bloki rozróżniane na „ciężki dzień / gorsze samopoczucie” i „czas był” — bez oceniania, z praktyczną radą (krótszy start). Nic nie jest usuwane ani nadpisywane bez zgody.
+- **Towarzysz.** Rozumie zwykłe wiadomości po polsku lokalnie, bez AI (praca/zmiana godzin, przełożenie muzyki, brak energii, choroba na N dni, wena, nauka, powrót, dzień wolny, plan tygodnia/miesiąca) i zamienia je w propozycje do zatwierdzenia. Z kluczem AI trudniejsze wiadomości trafiają do Claude po stronie serwera. Choroba = powód, nie porażka; zmęczenie = najpierw woda, jedzenie, sen; bez diagnoz.
+- **Akademia (opcjonalna).** 5 ścieżek: technika wokalna, teoria muzyki, flow i frazowanie, songwriting, analiza utworów (29 lekcji). Każda lekcja: wyjaśnienie, pojęcia, praktyka oparta na realnej muzyce (słuchanie, nauka fragmentu, rytm, intonacja, analiza) — nigdy sztuczne limity w stylu „napisz 8 wersów”; bezpieczeństwo głosu; źródła oznaczone „sprawdzone” / „do sprawdzenia” (`shared/catalog/sources.ts`). Ścieżki: zacznij, wstrzymaj, wznów, ukończ, wracaj. Postęp = lekcje oznaczone jako ukończone, nie czas.
+- **Książki.** Prawdziwe tytuły dopasowane do ścieżek w toku; statusy Polecona → Kupiona → W trakcie czytania → Ukończona (+ Odłożona, Rezygnuję); brak procentów; termin orientacyjny i elastyczny; po ukończeniu propozycja kolejnej.
+- **Projekty (opcjonalne).** Singiel/EP/album/kolekcja: nazwa, okładka (własne zdjęcie, kompresowane, synchronizowane — albo generowana), utwory z kolejnością, tekstami i notatkami. Bez zarządzania produkcją. Teksty nigdy nie trafiają do AI.
+- **Skupienie.** Uczciwie: PWA nie może blokować aplikacji na iOS. PULSE trzyma ekran włączony w sesji, uruchamia skrót iOS użytkownika (`shortcuts://run-shortcut`), prowadzi przez Czas przed ekranem (Przestój, limity, kod) i Skupienie. Natywne blokowanie wymagałoby aplikacji iOS z Family Controls.
+- **Statystyki (Rytm).** Mapa dni z muzyką, tygodnie w rytmie, przerwy i powroty, realizacja planu, sesje spontaniczne, postęp ścieżek, ukończone książki. Przypomnienia: najwyżej 2 na dobę, cisza w pracy, jedno spokojne przypomnienie o powrocie.
+
+---
+
+# Wersja 1 (historia)
+
 Źródło: „PULSE — Master Brief dla Claude Code”, wersja 1.0, 25 października 2026, część B (pełna specyfikacja funkcji). Część A (polecenie wykonawcze) jest streszczona w `CLAUDE.md`.
 
 ## B0. Tożsamość, obietnica i filozofia

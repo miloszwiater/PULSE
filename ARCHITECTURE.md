@@ -40,6 +40,11 @@ Każda tabela użytkownika ma klucz `(user_id, id)`, `updated_at` (LWW), `delete
 | `op_log` | dziennik zmian + rejestr idempotencji |
 | `users`, `auth_sessions`, `rate_limits`, `push_subscriptions`, `notification_log` | konta i infrastruktura |
 
+### v3 (migracja `0005_workflow_academy.sql`, tylko addytywna)
+- `workflows` — zapisane sposoby startu sesji; `learning` — postęp Akademii (wiersz ścieżki i wiersze lekcji, id = klucz z katalogu); `songs` — utwory w projektach (tekst, notatki, kolejność).
+- Nowe kolumny: `sessions.workflow_id/target_minutes`, `events.lesson_key`, `projects.kind/cover_data/tone`, `profile.focus_apps/focus_shortcut/focus_blocks/learning_per_week/music_style`.
+- Stare dane zostają nietknięte (cele, roadmapa, promocja, ćwiczenia v1 nadal są w bazie i eksporcie, tylko nie w UI). Klient przy starcie przepuszcza wiersze z IndexedDB przez schemat (`upgradeRows`), więc stare wiersze dostają domyślne wartości nowych pól.
+
 ## Synchronizacja i idempotencja
 1. `commit()` waliduje wiersz schematem, zapisuje lokalnie, natychmiast utrwala w IndexedDB i dokłada operację `{op_id, entity, action, id, data}` do outboxu (nowsza operacja na tym samym wierszu zastępuje niewysłaną).
 2. Pętla sync: wysyła outbox partiami → serwer pomija `op_id` widziane wcześniej (`duplicate`), stosuje upsert tylko gdy `updated_at` jest nowsze (`stale` w przeciwnym razie), wszystko w jednym `D1.batch`.
@@ -57,6 +62,9 @@ Gwarancje: ten sam zapis wysłany dwukrotnie nie podwaja niczego; zakończenie s
 - **Regularność** (`metrics.ts`): tydzień utrzymany, gdy sesje (≥10 min) ≥ cel × (dni niechronione / 7); tydzień w całości chroniony jest neutralny.
 - **Progresja** (`training.ts`): 2× „za łatwe” → wyższy poziom; 2× „za trudne”/nieukończone → zmiana metody; 3× → powrót poziom niżej.
 - **Insighty** (`insights.ts`): reguły z dowodami (brak domykania, zaniedbane priorytety, powtarzane pomijanie, nierówny rozkład, przeciążenie, lektura bez praktyki, progresja, długa przerwa). To baza dla mentora AI i działa bez AI.
+
+## Towarzysz (`shared/domain/companion.ts`, `src/screens/CompanionScreen.tsx`, `worker/mentor.ts`)
+Najpierw lokalny silnik intencji (polskie wyrażenia dat, godzin, dni) → odpowiedź + propozycja (`Proposal`) zapisywana jak każda inna i stosowana dopiero po „Zastosuj”. Nierozpoznane wiadomości idą do `/api/mentor/chat` (jeśli jest klucz), z nowym promptem i narzędziem `recommend_lesson`.
 
 ## Mentor AI (`worker/mentor.ts`)
 - System prompt (stały, cache'owany) + katalog ćwiczeń i książek; kontekst danych budowany per wiadomość przez `shared/domain/mentorContext.ts` (fakty, nie wnioski).

@@ -1,11 +1,11 @@
 # PULSE — zasady pracy
 
-PULSE to mobilna PWA (iPhone) — osobisty system rozwoju kariery muzycznej na 365 dni. Specyfikacja produktu: `PULSE_SPEC.md`. Design: `DESIGN.md`. Architektura: `ARCHITECTURE.md`. Stan prac: `PROGRESS.md` (aktualizuj po każdym etapie).
+PULSE to mobilna PWA (iPhone), która pomaga utrzymać muzykę jako regularną część życia: czas na tworzenie obok pracy, rytm bez presji, powroty po przerwach, opcjonalna nauka. Pilnuje regularności, nie kreatywności — nie mówi, co tworzyć. Specyfikacja produktu: `PULSE_SPEC.md`. Design: `DESIGN.md`. Architektura: `ARCHITECTURE.md`. Stan prac: `PROGRESS.md` (aktualizuj po każdym etapie).
 
 ## Stack
 - Klient: React 19 + TypeScript, Vite 8, własny design system (bez bibliotek UI), Zustand, IndexedDB (idb-keyval), vite-plugin-pwa (injectManifest, `src/sw.ts`).
 - Serwer: Cloudflare Worker (Hono) w `worker/`, baza Cloudflare D1, migracje w `migrations/`.
-- Wspólna logika domenowa (planer, metryki, trening, insighty, roadmapa): `shared/` — czysty TS, bez DOM i bez Workers API, testowany vitestem.
+- Wspólna logika domenowa (planer, metryki, workflow, akademia, towarzysz, insighty): `shared/` — czysty TS, bez DOM i bez Workers API, testowany vitestem. Treści Akademii: `shared/catalog/academy.ts` + źródła `shared/catalog/sources.ts`.
 - Mentor AI: `@anthropic-ai/sdk` wyłącznie po stronie Workera; klucz `ANTHROPIC_API_KEY` jako secret.
 
 ## Komendy
@@ -25,4 +25,7 @@ PULSE to mobilna PWA (iPhone) — osobisty system rozwoju kariery muzycznej na 3
 - Copy po polsku, w formach neutralnych płciowo (bez „zrobiłeś/zrobiłaś”, bez „sam(a)”).
 - Selektory Zustand zwracające nowe tablice owijaj w `useShallow` (inaczej pętla renderów).
 - iOS: nie obiecuj blokowania aplikacji ani dokładnych godzin powiadomień.
+- Żadnych sztucznych zadań twórczych („napisz 8 wersów”), żadnych wymaganych formularzy po sesji, żadnych ocen muzyki. Teoria w Akademii musi być poprawna; źródło niesprawdzone oznacz `verified: false`.
+- Towarzysz: lokalny silnik (`shared/domain/companion.ts`) najpierw; AI tylko przez serwer. Teksty utworów nigdy nie trafiają do kontekstu AI.
+- `node scripts/qa-v3.mjs <dir>` — przejście głównych przepływów ze zrzutami (po `shots.mjs` + `onboard.mjs`).
 - Model AI domyślnie `claude-opus-5-5` (zmienna `AI_MODEL`); nie wpisuj identyfikatorów modeli do commitów.

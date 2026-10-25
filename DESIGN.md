@@ -1,5 +1,16 @@
 # PULSE — design system
 
+## Wersja 3 — „płyta”
+Koncept: tydzień to rowki płyty, sesja to obracający się krążek. Jeden znak rozpoznawczy na ekran, reszta cicha.
+- **Pierścień rytmu** (`src/ui/Rhythm.tsx`, ekran Dziś): 4 tygodnie jako 4 rowki (zewnętrzny = ten tydzień, poniedziałek u góry). Każdy łuk to dzień; jasność = realny czas muzyki, piasek = dzień chroniony (choroba/urlop/wolne), błękit = plan. Rysuje się raz po starcie aplikacji (jedyna animacja nie wywołana akcją).
+- **Krążek startu** (Twórz) i **krążek sesji**: winyl z rowkami; obraca się tylko, gdy czas biegnie (stop przy pauzie), łuk postępu do wybranej długości; po przekroczeniu zamiaru łuk zmienia kolor na piaskowy (bez alarmu). Ikona Twórz w pasku to mała płyta, która kręci się podczas trwającej sesji.
+- **Nawigacja:** Dziś · Plan · Twórz · Nauka · Ty. Przejścia View Transitions: zakładki przesuwają się w kierunku zakładki, szczegóły wjeżdżają z prawej; pasek zakładek wyłączony z animacji.
+- **Kolor:** granat nocy jak w v2; fiolet tylko dla „na żywo” i postępu; nowy akcent **piasek `#E8C39A`** dla nauki, bezpieczeństwa głosu i dni chronionych; 8 tonów (`--tone-0…7`) dla workflow, ścieżek i okładek. Przycisk główny prawie płaski, bez poświaty; aktywny segment szary, nie fioletowy.
+- **Typografia:** Unbounded dla tytułów i liczb, Onest dla treści; lekcje 17 px, interlinia 1.62, ≤ 62 znaki.
+- **Okładki projektów:** zdjęcie użytkownika albo generowana „koperta” z rowkami w tonie projektu.
+- Ograniczony ruch: `prefers-reduced-motion` wyłącza obrót płyt, rysowanie pierścienia i przejścia.
+
+
 ## Wersja 2 (na podstawie referencji użytkownika)
 Kierunek: nocne studio — sylwetka artysty w kapturze ze słuchawkami przy monitorze z DAW, miasto za oknem, fioletowa poświata. W odróżnieniu od referencji (ilustracje AI) scena jest **generowana kodem** (`src/ui/NightScene.tsx`): panorama miasta jest unikalna dla konta (seed = id użytkownika), niebo zmienia się z porą dnia (świt / dzień / zmierzch / noc), do wyboru „zawsze noc”, „deszcz” albo własne zdjęcie przechowywane tylko na urządzeniu. Scena występuje na Start, Twórz (bez postaci — puste biurko czeka), w sesji (przygaszona) i w Profilu.
 - Okładki ćwiczeń i projektów: generowane fale w barwie obszaru (`Cover`), książki: typograficzne okładki (`BookCover`) — bez zdjęć stockowych.

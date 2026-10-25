@@ -24,10 +24,24 @@
   --violet-wash: rgba(142, 107, 255, 0.13);
   --violet-line: rgba(142, 107, 255, 0.42);
   --violet-deep: #5b2be0;
-  --grad-primary: linear-gradient(180deg, #9a6dff 0%, #7444f5 100%);
+  --grad-primary: linear-gradient(180deg, #9468ff 0%, #8150fa 100%);
   --grad-card: linear-gradient(180deg, rgba(139, 92, 255, 0.07) 0%, rgba(139, 92, 255, 0) 60%);
   --glow-sm: 0 0 0 1px rgba(139, 92, 255, 0.45), 0 6px 22px -8px rgba(139, 92, 255, 0.7);
   --blue: #4cb6ff;
+  --sand: #e8c39a;
+  --sand-wash: rgba(232, 195, 154, 0.12);
+  --groove: #1c1940;
+  --groove-hi: #2a2560;
+
+  /* Tones for workflows, paths and project sleeves */
+  --tone-0: #8b5cff;
+  --tone-1: #e8c39a;
+  --tone-2: #4cb6ff;
+  --tone-3: #e58bb7;
+  --tone-4: #49d5a4;
+  --tone-5: #f2b65a;
+  --tone-6: #ff8a6b;
+  --tone-7: #a9b1e6;
   --blue-wash: rgba(76, 182, 255, 0.12);
 
   /* Semantic */

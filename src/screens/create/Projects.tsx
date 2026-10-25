@@ -1,166 +1,193 @@
-import { useEffect, useState } from 'react';
-import { PROJECT_STAGES, projectSchema, type Project, type ProjectStage } from '../../../shared/schema';
+import { useRef, useState } from 'react';
+import { PROJECT_KINDS, projectSchema, type Project, type ProjectKind, type Song } from '../../../shared/schema';
 import { newId } from '../../../shared/domain/snapshot';
-import { countsAsSession, sessionDate } from '../../../shared/domain/sessions';
-import { durationLabel } from '../../../shared/time';
 import { useShallow } from 'zustand/react/shallow';
-import { useRow, useStore, remove } from '../../data/store';
-import { useClock } from '../../data/clock';
-import { putRow, startSession } from '../../data/actions';
+import { useRow, useStore, remove, commit } from '../../data/store';
+import { moveSong, putRow, saveSong } from '../../data/actions';
 import { navigate, useQuery } from '../../app/router';
-import { Button, Confirm, Empty, Field, Row, ScreenHeader, Section, Segmented, Sheet } from '../../ui/kit';
+import { Button, Confirm, Empty, Field, IconButton, ScreenHeader, Segmented, Sheet } from '../../ui/kit';
 import { Icon } from '../../ui/Icon';
-import { Cover } from '../../ui/Cover';
-import { dayLabel, OUTCOME_LABEL, STAGE_LABEL } from '../../ui/format';
+import { coverFromFile } from '../../ui/heroPhoto';
+import { plural } from '../../ui/format';
 import { toast } from '../../ui/toast';
+
+export const KIND_LABEL: Record<ProjectKind, string> = { single: 'Singiel', ep: 'EP', album: 'Album', collection: 'Kolekcja' };
+
+/** Cover: the person's own image, or a typographic sleeve in the project's tone. */
+export function Sleeve({ p, size }: { p: Project; size?: number }) {
+  return (
+    <span className="sleeve" style={{ '--tone': `var(--tone-${p.tone})`, width: size, height: size } as React.CSSProperties}>
+      {p.cover_data ? <img src={p.cover_data} alt="" /> : (
+        <span className="sleeve__gen" aria-hidden="true">
+          <span className="sleeve__grooves" />
+          <span className="sleeve__name">{p.title}</span>
+        </span>
+      )}
+    </span>
+  );
+}
 
 export function ProjectsScreen() {
   const q = useQuery();
-  const clock = useClock();
   const projects = useStore((s) => s.snap.projects);
-  const [filter, setFilter] = useState<'active' | 'released' | 'archived'>('active');
+  const songs = useStore((s) => s.snap.songs);
+  const [showArchived, setShowArchived] = useState(false);
   const [newOpen, setNewOpen] = useState(q.get('new') === '1');
-  const list = projects
-    .filter((p) => (filter === 'archived' ? p.archived : !p.archived && (filter === 'released' ? p.stage === 'released' : p.stage !== 'released')))
-    .sort((a, b) => (b.last_worked_at ?? b.updated_at) - (a.last_worked_at ?? a.updated_at));
+  const list = projects.filter((p) => p.archived === showArchived).sort((a, b) => (b.last_worked_at ?? b.updated_at) - (a.last_worked_at ?? a.updated_at));
   return (
-    <div className="screen">
+    <div className="screen projects">
       <ScreenHeader title="Projekty" onBack actions={<Button size="sm" variant="secondary" icon="plus" onClick={() => setNewOpen(true)}>Nowy</Button>} />
-      <Segmented label="Filtr projektów" value={filter} onChange={setFilter} options={[{ value: 'active', label: 'W pracy' }, { value: 'released', label: 'Wydane' }, { value: 'archived', label: 'Archiwum' }]} />
-      <div style={{ marginTop: 16 }}>
-        {list.length ? (
-          <div className="list">
-            {list.map((p) => (
-              <Row key={p.id} leading={<Cover seed={p.id} size={56} />} title={<>{p.title}<StageBar stage={p.stage} /></>}
-                sub={`${STAGE_LABEL[p.stage]}${p.working_title && p.working_title !== p.title ? ` · „${p.working_title}”` : ''}${p.last_worked_at ? ` · ${dayLabel(new Date(p.last_worked_at).toISOString().slice(0, 10), clock.today).toLowerCase()}` : ''}`}
-                onClick={() => navigate(`/projekty/${p.id}`)} />
-            ))}
-          </div>
-        ) : (
-          <Empty icon="folder" title={filter === 'active' ? 'Nic w pracy' : 'Pusto'}>
-            {filter === 'active' ? 'Dodaj utwór, nad którym pracujesz — nawet jeśli to tylko pomysł.' : 'Tu pojawią się projekty z tym statusem.'}
-          </Empty>
-        )}
-      </div>
+      <p className="learn__desc">Miejsce na albumy, EP-ki i kolekcje: okładka, kolejność utworów, teksty i notatki. Nie jest potrzebne, żeby tworzyć.</p>
+      {list.length ? (
+        <ul className="crate">
+          {list.map((p) => {
+            const n = songs.filter((s) => s.project_id === p.id).length;
+            return (
+              <li key={p.id}>
+                <button className="crate__item" onClick={() => navigate(`/projekty/${p.id}`)}>
+                  <Sleeve p={p} />
+                  <span className="crate__title">{p.title}</span>
+                  <span className="crate__meta">{KIND_LABEL[p.kind]}{n ? ` · ${n} ${plural(n, 'utwór', 'utwory', 'utworów')}` : ''}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <Empty icon="folder" title={showArchived ? 'Archiwum jest puste' : 'Jeszcze bez projektów'} action={!showArchived ? <Button variant="primary" icon="plus" onClick={() => setNewOpen(true)}>Utwórz projekt</Button> : undefined}>
+          {!showArchived && 'Np. EP z kilkoma utworami nad którymi pracujesz — z tekstami w jednym miejscu.'}
+        </Empty>
+      )}
+      <button className="btn btn--quiet" onClick={() => setShowArchived(!showArchived)}>{showArchived ? 'Pokaż aktywne' : 'Pokaż archiwum'}</button>
       <NewProjectSheet open={newOpen} onClose={() => setNewOpen(false)} />
     </div>
   );
 }
 
-/** Progress along the release path, from idea to released. */
-export function StageBar({ stage }: { stage: ProjectStage }) {
-  const i = PROJECT_STAGES.indexOf(stage);
-  return <span className="stagebar" aria-label={`Etap ${i + 1} z ${PROJECT_STAGES.length}`}><span style={{ width: `${((i + 1) / PROJECT_STAGES.length) * 100}%` }} /></span>;
-}
-
-export function StageMark({ stage }: { stage: ProjectStage }) {
-  const i = PROJECT_STAGES.indexOf(stage);
-  return (
-    <span className="stage-mark" aria-hidden="true">
-      {PROJECT_STAGES.map((s, j) => <span key={s} className={j <= i ? 'is-on' : ''} />)}
-    </span>
-  );
-}
-
 function NewProjectSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [title, setTitle] = useState('');
-  const [stage, setStage] = useState<ProjectStage>('idea');
+  const [kind, setKind] = useState<ProjectKind>('ep');
+  const count = useStore((s) => s.snap.projects.length);
   return (
     <Sheet open={open} onClose={onClose} title="Nowy projekt"
       footer={<Button variant="primary" block disabled={!title.trim()} onClick={() => {
-        const p = projectSchema.parse({ id: newId('pj'), updated_at: Date.now(), title: title.trim(), working_title: title.trim(), stage });
+        const p = projectSchema.parse({ id: newId('pj'), updated_at: Date.now(), title: title.trim(), kind, tone: count % 8 });
         putRow('projects', p);
         setTitle('');
         onClose();
         navigate(`/projekty/${p.id}`);
       }}>Utwórz</Button>}>
-      <Field label="Tytuł lub robocza nazwa"><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={160} data-autofocus /></Field>
-      <Field label="Etap">
-        <select className="select" value={stage} onChange={(e) => setStage(e.target.value as ProjectStage)}>
-          {PROJECT_STAGES.map((s) => <option key={s} value={s}>{STAGE_LABEL[s]}</option>)}
-        </select>
-      </Field>
+      <Field label="Nazwa"><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={160} data-autofocus placeholder="Tytuł roboczy" /></Field>
+      <Segmented label="Rodzaj" value={kind} onChange={setKind} options={PROJECT_KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }))} />
     </Sheet>
   );
 }
 
 export function ProjectScreen({ id }: { id: string }) {
   const p = useRow('projects', id);
-  const clock = useClock();
-  const tz = useStore((s) => s.snap.profile?.timezone ?? 'Europe/Warsaw');
-  const sessions = useStore(useShallow((s) => s.snap.sessions.filter((x) => x.project_id === id && countsAsSession(x))));
-  const [draft, setDraft] = useState<Project | null>(p ?? null);
+  const songs = useStore(useShallow((s) => Object.values(s.rows.songs).filter((x) => x.deleted_at == null && x.project_id === id).sort((a, b) => a.position - b.position)));
+  const [notes, setNotes] = useState(p?.notes ?? '');
+  const [title, setTitle] = useState(p?.title ?? '');
+  const [song, setSong] = useState<Song | 'new' | null>(null);
   const [confirmDel, setConfirmDel] = useState(false);
-  useEffect(() => { if (p && (!draft || draft.id !== p.id)) setDraft(p); }, [p]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Autosave edits (debounced) — no save button to forget.
-  useEffect(() => {
-    if (!draft || !p) return;
-    const changed = (['title', 'working_title', 'description', 'stage', 'notes', 'inspirations', 'link', 'release_date', 'archived'] as const).some((k) => draft[k] !== p[k]);
-    if (!changed) return;
-    const t = setTimeout(() => putRow('projects', { ...p, ...draft, updated_at: Date.now() }), 600);
-    return () => clearTimeout(t);
-  }, [draft, p]);
-
-  if (!p || p.deleted_at != null || !draft) {
-    return <div className="screen"><ScreenHeader title="Projekt" onBack /><Empty icon="folder" title="Nie ma takiego projektu" /></div>;
-  }
-  const set = <K extends keyof Project>(k: K, v: Project[K]) => setDraft({ ...draft, [k]: v });
-  const minutes = Math.round(sessions.reduce((t, s) => t + s.active_seconds, 0) / 60);
-  const validLink = !draft.link || /^https?:\/\//i.test(draft.link);
-
+  const file = useRef<HTMLInputElement>(null);
+  if (!p || p.deleted_at != null) return <div className="screen"><ScreenHeader title="Projekt" onBack /><Empty title="Nie ma takiego projektu." /></div>;
+  const save = (patch: Partial<Project>) => putRow('projects', { ...p, ...patch });
   return (
-    <div className="screen">
-      <ScreenHeader title={draft.title || 'Bez tytułu'} onBack />
-      <div className="projhead"><Cover seed={p.id} size={96} radius={20} /><div><p className="muted small">{STAGE_LABEL[draft.stage]}</p><p className="num">{sessions.length} sesji · {durationLabel(minutes)}</p><StageBar stage={draft.stage} /></div></div>
-      <Button variant="primary" block icon="play" onClick={() => { startSession({ project_id: p.id, title: `Praca nad: ${p.title}`, type: 'create' }); navigate('/sesja'); }}>Sesja nad tym utworem</Button>
-
-      <Section title="Etap">
-        <div className="stage-picker" role="radiogroup" aria-label="Etap projektu">
-          {PROJECT_STAGES.map((s) => (
-            <button key={s} role="radio" aria-checked={draft.stage === s} className={`stage-picker__opt${draft.stage === s ? ' is-on' : ''}${PROJECT_STAGES.indexOf(s) < PROJECT_STAGES.indexOf(draft.stage) ? ' is-past' : ''}`} onClick={() => set('stage', s)}>
-              {STAGE_LABEL[s]}
-            </button>
-          ))}
-        </div>
-      </Section>
-
-      <Section title="Karta utworu">
-        <div className="stack">
-          <Field label="Tytuł"><input className="input" value={draft.title} onChange={(e) => set('title', e.target.value)} maxLength={160} /></Field>
-          <Field label="Robocza nazwa"><input className="input" value={draft.working_title} onChange={(e) => set('working_title', e.target.value)} maxLength={160} /></Field>
-          <Field label="O czym jest"><textarea className="textarea" value={draft.description} onChange={(e) => set('description', e.target.value)} maxLength={2000} /></Field>
-          <Field label="Inspiracje" hint="Techniki i nastroje, nie kopiowanie."><textarea className="textarea" value={draft.inspirations} onChange={(e) => set('inspirations', e.target.value)} maxLength={2000} /></Field>
-          <Field label="Notatki"><textarea className="textarea" value={draft.notes} onChange={(e) => set('notes', e.target.value)} maxLength={8000} style={{ minHeight: 140 }} /></Field>
-          <Field label="Link do pliku (poza aplikacją)" error={validLink ? null : 'Link musi zaczynać się od http:// lub https://'} hint="Np. Dysk, Dropbox, SoundCloud prywatnie.">
-            <input className="input" type="url" inputMode="url" value={draft.link} onChange={(e) => set('link', e.target.value)} maxLength={500} />
-          </Field>
-          {draft.link && validLink && <a href={draft.link} target="_blank" rel="noreferrer noopener" className="small"><Icon name="link" size={14} /> Otwórz plik</a>}
-          <Field label="Planowana premiera" hint="Ustawienie daty pozwala przygotować plan premiery w Karierze.">
-            <input className="input" type="date" value={draft.release_date ?? ''} onChange={(e) => set('release_date', e.target.value || null)} />
-          </Field>
-        </div>
-      </Section>
-
-      <Section title="Sesje">
-        {sessions.length ? (
-          <div className="list">
-            {sessions.sort((a, b) => b.started_at - a.started_at).map((s) => (
-              <Row key={s.id} title={`${dayLabel(sessionDate(s, tz), clock.today)} · ${durationLabel(s.active_seconds / 60)}`} sub={`${OUTCOME_LABEL[s.outcome]}${s.outcome_note ? ` — ${s.outcome_note}` : ''}`} trailing={null} />
-            ))}
+    <div className="screen project" style={{ '--tone': `var(--tone-${p.tone})` } as React.CSSProperties}>
+      <ScreenHeader title="" onBack={() => navigate('/projekty')} actions={<IconButton icon="trash" label="Usuń projekt" onClick={() => setConfirmDel(true)} />} />
+      <div className="project__top">
+        <button className="project__cover" onClick={() => file.current?.click()} aria-label="Zmień okładkę">
+          <Sleeve p={p} />
+          <span className="project__cover-hint"><Icon name="image" size={16} /> Okładka</span>
+        </button>
+        <input ref={file} type="file" accept="image/*" hidden onChange={async (e) => {
+          const f = e.target.files?.[0];
+          if (!f) return;
+          try { save({ cover_data: await coverFromFile(f) }); toast('Okładka zapisana.', 'ok'); } catch { toast('Nie udało się wczytać obrazu.', 'error'); }
+          e.target.value = '';
+        }} />
+        <div className="project__ident">
+          <input className="project__title" value={title} onChange={(e) => setTitle(e.target.value)} onBlur={() => title.trim() && title !== p.title && save({ title: title.trim() })} maxLength={160} aria-label="Nazwa projektu" />
+          <div className="cluster">
+            {p.cover_data && <button className="btn btn--quiet" onClick={() => save({ cover_data: '' })}>Usuń zdjęcie</button>}
+            {!p.cover_data && <button className="btn btn--quiet" onClick={() => save({ tone: (p.tone + 1) % 8 })}>Inny kolor okładki</button>}
           </div>
-        ) : <p className="muted small">Jeszcze bez sesji. Powiąż sesję z projektem w trakcie pracy.</p>}
-      </Section>
-
-      <Section title="Porządki">
-        <div className="cluster">
-          <Button variant="secondary" size="sm" onClick={() => { set('archived', !draft.archived); toast(draft.archived ? 'Przywrócono z archiwum.' : 'Przeniesiono do archiwum.', 'ok'); }}>{draft.archived ? 'Przywróć' : 'Archiwizuj'}</Button>
-          <Button variant="danger" size="sm" icon="trash" onClick={() => setConfirmDel(true)}>Usuń</Button>
         </div>
-      </Section>
+      </div>
+
+      <div className="project__kind"><Segmented label="Rodzaj" value={p.kind} onChange={(k) => save({ kind: k })} options={PROJECT_KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }))} /></div>
+
+      <section className="block" aria-labelledby="tl-h">
+        <div className="block__head">
+          <h2 className="block__title" id="tl-h">Utwory</h2>
+          <button className="btn btn--quiet" onClick={() => setSong('new')}><Icon name="plus" size={16} /> Dodaj</button>
+        </div>
+        {songs.length ? (
+          <ol className="tracklist">
+            {songs.map((s, i) => (
+              <li key={s.id} className="track">
+                <span className="track__n num">{i + 1}</span>
+                <button className="track__main" onClick={() => setSong(s)}>
+                  <span className="track__title">{s.title}</span>
+                  <span className="track__meta">{s.lyrics ? (() => { const n = s.lyrics.split('\n').filter(Boolean).length; return `${n} ${plural(n, 'wers', 'wersy', 'wersów')} tekstu`; })() : 'bez tekstu'}{s.done ? ' · gotowy' : ''}</span>
+                </button>
+                <span className="track__order">
+                  <IconButton icon="up" label="Wyżej" disabled={i === 0} onClick={() => moveSong(s, -1)} />
+                  <IconButton icon="down" label="Niżej" disabled={i === songs.length - 1} onClick={() => moveSong(s, 1)} />
+                </span>
+              </li>
+            ))}
+          </ol>
+        ) : <p className="muted small">Dodaj utwory, żeby ułożyć kolejność i trzymać teksty w jednym miejscu.</p>}
+      </section>
+
+      <div className="block"><Field label="Notatki do projektu">
+        <textarea className="textarea" value={notes} onChange={(e) => setNotes(e.target.value)} onBlur={() => notes !== p.notes && save({ notes })} maxLength={8000} placeholder="Koncept, klimat, kolejność, pomysły na okładkę." />
+      </Field></div>
+      <div className="cluster" style={{ marginTop: 16 }}>
+        <Button variant="ghost" onClick={() => { save({ archived: !p.archived }); toast(p.archived ? 'Przywrócono z archiwum.' : 'Przeniesiono do archiwum.', 'ok'); }}>{p.archived ? 'Przywróć z archiwum' : 'Przenieś do archiwum'}</Button>
+      </div>
+
+      <SongSheet value={song} projectId={p.id} onClose={() => setSong(null)} />
       <Confirm open={confirmDel} onClose={() => setConfirmDel(false)} danger title="Usunąć projekt?" confirmLabel="Usuń"
-        text="Sesje powiązane z projektem zostaną zachowane w statystykach. Archiwizacja jest bezpieczniejsza."
-        onConfirm={() => { remove('projects', p.id); navigate('/projekty', { replace: true }); }} />
+        text="Projekt i jego utwory (z tekstami) znikną. Sesje zostają w historii."
+        onConfirm={() => {
+          commit([{ entity: 'projects', deleteId: p.id }, ...songs.map((s) => ({ entity: 'songs' as const, deleteId: s.id }))]);
+          navigate('/projekty', { replace: true });
+        }} />
     </div>
+  );
+}
+
+function SongSheet({ value, projectId, onClose }: { value: Song | 'new' | null; projectId: string; onClose: () => void }) {
+  const [title, setTitle] = useState('');
+  const [lyrics, setLyrics] = useState('');
+  const [notes, setNotes] = useState('');
+  const [done, setDone] = useState(false);
+  const [key, setKey] = useState<unknown>(null);
+  if (value !== key) {
+    setKey(value);
+    const s = value && value !== 'new' ? value : null;
+    setTitle(s?.title ?? ''); setLyrics(s?.lyrics ?? ''); setNotes(s?.notes ?? ''); setDone(s?.done ?? false);
+  }
+  if (!value) return null;
+  const existing = value !== 'new' ? value : null;
+  const save = () => {
+    if (!title.trim()) return;
+    saveSong({ ...(existing ?? {}), project_id: projectId, title: title.trim(), lyrics, notes, done });
+    onClose();
+  };
+  return (
+    <Sheet open onClose={() => { if (existing && title.trim()) save(); else onClose(); }} title={existing ? existing.title : 'Nowy utwór'} tall
+      footer={<>{existing && <IconButton icon="trash" label="Usuń utwór" onClick={() => { remove('songs', existing.id); onClose(); }} />}<Button variant="primary" disabled={!title.trim()} onClick={save}>Zapisz</Button></>}>
+      <Field label="Tytuł"><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={160} data-autofocus={!existing || undefined} /></Field>
+      <label className="field">
+        <span className="field__label">Tekst</span>
+        <textarea className="textarea lyrics" value={lyrics} onChange={(e) => setLyrics(e.target.value)} maxLength={20000} placeholder="Tekst zostaje prywatny — Towarzysz AI go nie dostaje." />
+      </label>
+      <Field label="Notatki"><textarea className="textarea" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={4000} /></Field>
+      <label className="check"><input type="checkbox" checked={done} onChange={(e) => setDone(e.target.checked)} /> Gotowy</label>
+    </Sheet>
   );
 }

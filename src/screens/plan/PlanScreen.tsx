@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { COMMITMENT_KINDS, DAY_STATUSES, type DayStatus, type EventKind, type PEvent, type Proposal } from '../../../shared/schema';
 import { dayContext, type Block } from '../../../shared/domain/day';
-import { detectConflicts, generateWeekPlan, resolveConflicts, type DayNote } from '../../../shared/domain/planner';
+import { closeStaleProposal, detectConflicts, generateMonthPlan, generateWeekPlan, resolveConflicts, type DayNote } from '../../../shared/domain/planner';
 import { countsAsSession, sessionDate } from '../../../shared/domain/sessions';
 import { weekStats } from '../../../shared/domain/metrics';
 import { addDays, addMonths, daysInMonth, durationLabel, hhmm, monthStart, parseDate, weekDates, weekStart, weekday } from '../../../shared/time';
@@ -40,13 +40,14 @@ export function PlanScreen() {
 
   useEffect(() => {
     if (q.get('gen') === '1') setPlan(generateWeekPlan(snap, clock));
-    // Deep link from Roadmap/Kariera: add a concrete step to the plan.
+    // Deep link: add a concrete item to the plan.
     if (q.get('add')) setDraft({ date: clock.today, start_min: 1080, end_min: 1140, kind: (q.get('kind') as EventKind) || 'other', title: q.get('add') ?? '', notes: q.get('notes') ?? '' });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const shift = (n: number) => setDate(view === 'day' ? addDays(date, n) : view === 'week' ? addDays(date, 7 * n) : addMonths(date, n));
   const title = view === 'month' ? `${MONTHS[parseDate(date).m - 1]} ${parseDate(date).y}` : view === 'week' ? `Tydzień ${dayLabel(weekStart(date), clock.today).toLowerCase()}` : dayLabel(date, clock.today);
   const pendingCount = snap.proposals.filter((p) => p.status === 'pending').length;
+  const stale = useMemo(() => closeStaleProposal(snap, clock), [snap, clock]);
 
   return (
     <div className="screen plan">
@@ -75,7 +76,7 @@ export function PlanScreen() {
       {pendingCount > 0 && (
         <button className="alert-row alert-row--violet" onClick={() => follow.setProposal(snap.proposals.find((p) => p.status === 'pending')!)}>
           <Icon name="sparkle" size={20} />
-          <span><strong>{pendingCount} {plural(pendingCount, 'propozycja', 'propozycje', 'propozycji')} mentora</strong> czeka na decyzję.</span>
+          <span><strong>{pendingCount} {plural(pendingCount, 'propozycja czeka', 'propozycje czekają', 'propozycji czeka')}</strong> na decyzję.</span>
           <Icon name="chevron" size={18} />
         </button>
       )}
@@ -86,8 +87,12 @@ export function PlanScreen() {
       {view === 'month' && <MonthView date={date} onDay={(d) => { setDate(d); setView('day'); }} />}
 
       <div className="plan__gen">
-        <Button variant="secondary" icon="sparkle" block onClick={() => setPlan(generateWeekPlan(snap, clock, view === 'day' && date > clock.today ? date : clock.today))}>Zaplanuj resztę tygodnia</Button>
-        <p className="dim xs">Planer uwzględnia pracę, dojazdy, regenerację po zmianie, dni wolne i samopoczucie. Pokazuje propozycję — nic nie zmienia bez Twojej zgody.</p>
+        <div className="plan__genrow">
+          <Button variant="secondary" icon="sparkle" onClick={() => setPlan(generateWeekPlan(snap, clock, view === 'day' && date > clock.today ? date : clock.today))}>Zaplanuj tydzień</Button>
+          <Button variant="secondary" icon="calendar" onClick={() => { const m = generateMonthPlan(snap, clock); setPlan({ proposal: m.proposal, notes: [] }); }}>Zaplanuj miesiąc</Button>
+        </div>
+        {stale && <Button variant="ghost" size="sm" onClick={() => follow.setProposal(stale)}>Zamknij {stale.changes.length} {plural(stale.changes.length, 'stary blok', 'stare bloki', 'starych bloków')} bez kary</Button>}
+        <p className="dim xs">Planer bierze pod uwagę pracę, dojazdy, regenerację po zmianie, sen, dni wolne, samopoczucie, długie sesje i Twoją historię. Pokazuje propozycję — nic nie zmienia bez Twojej zgody i nie usuwa niczego, co ustawiono ręcznie.</p>
       </div>
 
       <EventSheet draft={draft} onClose={() => setDraft(null)} onSaved={(blocking) => blocking && follow.check()} />
@@ -111,7 +116,7 @@ export function PlanScreen() {
 const PPM = 0.8; // px per minute
 
 export const KIND_ICON: Record<string, IconName> = {
-  work: 'clock', commute: 'route', music: 'music', training: 'target', reading: 'book', promo: 'megaphone',
+  work: 'clock', commute: 'route', music: 'music', training: 'learn', reading: 'book', promo: 'megaphone',
   private: 'user', relationship: 'heart', sport: 'bolt', rest: 'moon', other: 'more',
 };
 
@@ -263,7 +268,7 @@ function WeekView({ date, onDay }: { date: string; onDay: (d: string) => void })
                   </span>
                   <span className="weekrow__info">
                     {ctx.status !== 'normal' ? (ctx.status === 'low' ? 'Mało energii' : DAY_STATUS_LABEL[ctx.status as DayStatus]) : load > 0 ? `Praca ${Math.round(load * 10) / 10} h` : 'Bez pracy'}
-                    {evs.length > 0 && ` · ${evs.length} ${plural(evs.length, 'blok', 'bloki', 'bloków')} rozwoju`}
+                    {evs.length > 0 && ` · ${evs.length} ${plural(evs.length, 'blok', 'bloki', 'bloków')} muzyki/nauki`}
                     {mins > 0 && <span className="weekrow__done"> · zrobione {durationLabel(mins)}</span>}
                   </span>
                 </span>
@@ -301,7 +306,6 @@ function MonthView({ date, onDay }: { date: string; onDay: (d: string) => void }
   const total = [...minutesBy.values()].reduce((a, b) => a + b, 0);
   const plannedBy = new Map<string, number>();
   for (const e of snap.events) if (e.date.slice(0, 7) === first.slice(0, 7) && (e.kind === 'music' || e.kind === 'training') && e.status === 'planned') plannedBy.set(e.date, (plannedBy.get(e.date) ?? 0) + 1);
-  const goals = snap.goals.filter((g) => g.status === 'active' && (g.period === 'month' || (g.due_date && g.due_date.slice(0, 7) === first.slice(0, 7))));
   return (
     <div className="monthview">
       <div className="monthgrid" role="grid" aria-label="Miesiąc">
@@ -313,7 +317,7 @@ function MonthView({ date, onDay }: { date: string; onDay: (d: string) => void }
           const lvl = m === 0 ? 0 : m < 45 ? 1 : m < 120 ? 2 : 3;
           return (
             <button key={d} role="gridcell" className={`monthgrid__cell lvl-${lvl}${d === clock.today ? ' is-today' : ''} st-${ctx.status}`} onClick={() => onDay(d)}
-              aria-label={`${longDate(d)}${m ? `, ${m} min pracy` : ''}${plannedBy.get(d) ? `, zaplanowane: ${plannedBy.get(d)}` : ''}`}>
+              aria-label={`${longDate(d)}${m ? `, ${m} min muzyki` : ''}${plannedBy.get(d) ? `, zaplanowane: ${plannedBy.get(d)}` : ''}`}>
               <span className="num">{parseDate(d).d}</span>
               {plannedBy.get(d) && d >= clock.today ? <span className="monthgrid__planned" /> : null}
               {ctx.status === 'sick' || ctx.status === 'vacation' || ctx.status === 'off' ? <span className="monthgrid__st" /> : null}
@@ -327,13 +331,7 @@ function MonthView({ date, onDay }: { date: string; onDay: (d: string) => void }
         <span><span className="mlegend lvl-3" /> ponad 2 h</span>
         <span><span className="mlegend mlegend--planned" /> zaplanowane</span>
       </div>
-      <p className="small" style={{ marginTop: 16 }}>W tym miesiącu: <strong className="num">{durationLabel(total)}</strong> realnej pracy w <strong className="num">{minutesBy.size}</strong> {plural(minutesBy.size, 'dniu', 'dniach', 'dniach')}.</p>
-      {goals.length > 0 && (
-        <div className="stack" style={{ marginTop: 16 }}>
-          <span className="field__label">Cele z terminem w tym miesiącu</span>
-          {goals.map((g) => <button key={g.id} className="row row--action" onClick={() => navigate('/kariera/cele')}><span className="row__main"><span className="row__title">{g.title}</span></span></button>)}
-        </div>
-      )}
+      <p className="small" style={{ marginTop: 16 }}>W tym miesiącu: <strong className="num">{durationLabel(total)}</strong> muzyki w <strong className="num">{minutesBy.size}</strong> {plural(minutesBy.size, 'dniu', 'dniach', 'dniach')}.</p>
     </div>
   );
 }

@@ -4,14 +4,14 @@ import { revertProposal } from '../../data/actions';
 import { Button, Sheet } from '../../ui/kit';
 
 const STATUS = { pending: 'Czeka', applied: 'Zastosowana', rejected: 'Odrzucona', reverted: 'Cofnięta' } as const;
-const SOURCE = { planner: 'Planer', mentor: 'Mentor', conflict: 'Konflikt' } as const;
+const SOURCE = { planner: 'Planer', mentor: 'Towarzysz', conflict: 'Konflikt' } as const;
 
 export function HistorySheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const proposals = useStore(useShallow((s) => s.snap.proposals));
   const list = [...proposals].sort((a, b) => (b.decided_at ?? b.updated_at) - (a.decided_at ?? a.updated_at)).slice(0, 40);
   return (
     <Sheet open={open} onClose={onClose} title="Historia zmian planu" tall>
-      {list.length === 0 && <p className="muted small">Tu pojawią się propozycje planera i mentora — zastosowane, odrzucone i cofnięte.</p>}
+      {list.length === 0 && <p className="muted small">Tu pojawią się propozycje planera i Towarzysza — zastosowane, odrzucone i cofnięte.</p>}
       <div className="list">
         {list.map((p) => (
           <div key={p.id} className="row history-row">

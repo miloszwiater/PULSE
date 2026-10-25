@@ -11,8 +11,8 @@ export async function newUser(page: Page, name = 'Test') {
   expect(res.ok(), await res.text()).toBeTruthy();
   await page.goto('/');
   await expect(page.locator('.onb')).toBeVisible();
-  for (let i = 0; i < 6; i++) await page.locator('.onb__foot .btn--primary').click();
-  await expect(page.locator('.hero__headline')).toBeVisible();
+  for (let i = 0; i < 5; i++) await page.locator('.onb__foot .btn--primary').click();
+  await expect(page.locator('.today__headline')).toBeVisible();
   return email;
 }
 

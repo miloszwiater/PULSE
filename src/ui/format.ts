@@ -34,7 +34,7 @@ export function dayLabel(d: string, today: string): string {
 }
 
 export const KIND_LABEL: Record<EventKind, string> = {
-  work: 'Praca', commute: 'Dojazd', music: 'Muzyka', training: 'Trening', reading: 'Czytanie', promo: 'Promocja',
+  work: 'Praca', commute: 'Dojazd', music: 'Muzyka', training: 'Nauka', reading: 'Czytanie', promo: 'Promocja',
   private: 'Sprawy prywatne', relationship: 'Relacje', sport: 'Ruch', rest: 'Odpoczynek', other: 'Inne',
 };
 export const STATUS_LABEL: Record<EventStatus, string> = {

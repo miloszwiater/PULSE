@@ -1,167 +1,241 @@
 import { useMemo, useState } from 'react';
-import { SESSION_TYPES, OUTCOMES, type Outcome, type SessionType, type SkillCategory } from '../../../shared/schema';
+import type { Session, Workflow } from '../../../shared/schema';
 import { countsAsSession, sessionDate } from '../../../shared/domain/sessions';
-import { recommendExercises } from '../../../shared/domain/training';
-import { dayContext } from '../../../shared/domain/day';
-import { CATEGORY_SHORT } from '../../../shared/catalog/exercises';
-import { durationLabel, hhmm, parseHHMM } from '../../../shared/time';
+import { QUICK_LENGTHS, STARTER_WORKFLOWS, workflowsSorted } from '../../../shared/domain/workflow';
+import { durationLabel, hhmm, parseHHMM, zoned } from '../../../shared/time';
 import { useStore } from '../../data/store';
 import { useClock } from '../../data/clock';
-import { activeSession, logManualSession, startSession } from '../../data/actions';
+import { activeSession, logManualSession, removeWorkflow, saveWorkflow, startSession, updateSession } from '../../data/actions';
+import { remove, commit } from '../../data/store';
 import { navigate } from '../../app/router';
-import { Button, Chip, Empty, Field, Row, Section, Sheet } from '../../ui/kit';
-import { Icon, type IconName } from '../../ui/Icon';
-import { NightScene } from '../../ui/NightScene';
-import { useScene } from '../../ui/useScene';
-import { Cover } from '../../ui/Cover';
-import { dayLabel, OUTCOME_LABEL, STAGE_LABEL, TYPE_LABEL } from '../../ui/format';
+import { Button, Chip, Field, IconButton, Row, Sheet, Toggle } from '../../ui/kit';
+import { Icon } from '../../ui/Icon';
+import { dayLabel } from '../../ui/format';
 import { toast } from '../../ui/toast';
 
-const FLOW_TYPES: SessionType[] = SESSION_TYPES.filter((t) => t !== 'other' && t !== 'training');
-type TypeTile = { type: SessionType; label: string; icon: IconName; category: SkillCategory | null };
-export const MAIN_TYPES: TypeTile[] = [
-  { type: 'create', label: 'Tworzę', icon: 'music', category: null },
-  { type: 'write', label: 'Piszę do beatu', icon: 'pen', category: 'songwriting' },
-  { type: 'record', label: 'Nagrywam', icon: 'mic', category: null },
-  { type: 'inspiration', label: 'Pomysł', icon: 'bulb', category: null },
-];
-export const MORE_TYPES: TypeTile[] = [
-  { type: 'flow', label: 'Flow', icon: 'wave', category: 'flow' },
-  { type: 'production', label: 'Produkcja', icon: 'sliders', category: 'production' },
-  { type: 'experiment', label: 'Eksperyment', icon: 'flask', category: null },
-];
+export const TONES = 8;
+const lengthLabel = (m: number | null) => (m == null ? 'Bez limitu' : m >= 60 && m % 60 === 0 ? `${m / 60} h` : `${m} min`);
 
 export function CreateScreen() {
   const clock = useClock();
   const snap = useStore((s) => s.snap);
   const tz = snap.profile?.timezone ?? 'Europe/Warsaw';
-  const scene = useScene(clock.nowMin);
-  const [manualOpen, setManualOpen] = useState(false);
   const running = activeSession();
-  const ctx = useMemo(() => dayContext(snap, clock.today, clock), [snap, clock]);
-  const recs = useMemo(() => recommendExercises(snap, clock.today, { limit: 2, maxMinutes: Math.max(45, ctx.remainingMinutes) }), [snap, clock.today, ctx.remainingMinutes]);
-  const today = snap.events.filter((e) => e.date === clock.today && (e.kind === 'music' || e.kind === 'training') && e.status === 'planned').sort((a, b) => a.start_min - b.start_min);
-  const projects = snap.projects.filter((p) => !p.archived && p.stage !== 'released').sort((a, b) => (b.last_worked_at ?? b.updated_at) - (a.last_worked_at ?? a.updated_at)).slice(0, 3);
-  const recent = snap.sessions.filter(countsAsSession).sort((a, b) => b.started_at - a.started_at).slice(0, 5);
+  const [minutes, setMinutes] = useState<number | null>(null);
+  const [focus, setFocus] = useState(false);
+  const [edit, setEdit] = useState<Partial<Workflow> | null>(null);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [openSession, setOpenSession] = useState<Session | null>(null);
+  const workflows = workflowsSorted(snap);
+  const planned = snap.events.find((e) => e.date === clock.today && e.kind === 'music' && !e.lesson_key && e.status === 'planned' && e.end_min > clock.nowMin);
 
-  const go = (fn: () => void) => { fn(); navigate('/sesja'); };
+  const history = useMemo(() => {
+    const list = snap.sessions.filter(countsAsSession).sort((a, b) => b.started_at - a.started_at).slice(0, 40);
+    const groups = new Map<string, Session[]>();
+    for (const s of list) {
+      const d = sessionDate(s, tz);
+      groups.set(d, [...(groups.get(d) ?? []), s]);
+    }
+    return [...groups.entries()].slice(0, 10);
+  }, [snap.sessions, tz]);
+
+  const go = (opts: Parameters<typeof startSession>[0]) => { startSession(opts); navigate('/sesja'); };
 
   return (
-    <div className="create2">
-      <section className="bandhero" aria-labelledby="flow-h">
-        <NightScene {...scene} person={false} />
-        <div className="bandhero__copy">
-          <h1 id="flow-h" className="bandhero__title">Creative Flow</h1>
-          <p className="bandhero__lead">Masz wenę? Przechwyć ją — jedno dotknięcie i czas już się liczy.</p>
+    <div className="screen create3">
+      <header className="create3__head">
+        <h1 className="create3__title">Twórz</h1>
+        <p className="create3__lead">Jedno dotknięcie i czas się liczy. Bez kategorii, bez formularzy.</p>
+      </header>
+
+      {running ? (
+        <section className="launch">
+          <button className="launch__disc is-live" onClick={() => navigate('/sesja')} aria-label="Wróć do trwającej sesji">
+            <span className="launch__grooves" aria-hidden="true" />
+            <span className="launch__label">Wróć</span>
+          </button>
+          <p className="launch__hint">Sesja trwa — czas biegnie także przy zablokowanym telefonie.</p>
+        </section>
+      ) : (
+        <section className="launch" aria-label="Szybki start">
+          <button className="launch__disc" onClick={() => go({ minutes, focus, event: planned ?? null })} aria-label={`Zacznij sesję: ${lengthLabel(minutes)}`}>
+            <span className="launch__grooves" aria-hidden="true" />
+            <span className="launch__label">Zacznij</span>
+            <span className="launch__sub">{lengthLabel(minutes)}</span>
+          </button>
+          <div className="launch__lengths" role="radiogroup" aria-label="Długość sesji">
+            {QUICK_LENGTHS.map((m) => (
+              <button key={String(m)} role="radio" aria-checked={minutes === m} className={`len${minutes === m ? ' is-on' : ''}`} onClick={() => setMinutes(m)}>{lengthLabel(m)}</button>
+            ))}
+          </div>
+          <div className="launch__opts">
+            <Chip icon="focus" on={focus} onClick={() => setFocus(!focus)}>Tryb skupienia</Chip>
+            {planned && <span className="launch__plan">Zaliczy też plan z {hhmm(planned.start_min)}</span>}
+          </div>
+          <p className="launch__hint">Długość to tylko zamiar — sesję można skończyć wcześniej albo ciągnąć dalej.</p>
+        </section>
+      )}
+
+      <section className="block" aria-labelledby="wf-h">
+        <div className="block__head">
+          <h2 className="block__title" id="wf-h">Twoje workflow</h2>
+          <button className="btn btn--quiet" onClick={() => setEdit({ name: '', minutes: 60, focus: false, tone: workflows.length % TONES, intention: '' })}><Icon name="plus" size={16} /> Nowe</button>
+        </div>
+        {workflows.length ? (
+          <ul className="wf-list">
+            {workflows.map((w) => (
+              <li key={w.id} className="wf" style={{ '--tone': `var(--tone-${w.tone})` } as React.CSSProperties}>
+                <button className="wf__main" onClick={() => setEdit(w)} aria-label={`Edytuj: ${w.name}`}>
+                  <span className="wf__dot" aria-hidden="true" />
+                  <span className="wf__text">
+                    <span className="wf__name">{w.name}</span>
+                    <span className="wf__meta">{lengthLabel(w.minutes)}{w.focus ? ', ze skupieniem' : ''}{w.intention ? ` — ${w.intention}` : ''}</span>
+                  </span>
+                </button>
+                <IconButton icon="play" label={`Zacznij: ${w.name}`} className="wf__play" disabled={!!running} onClick={() => go({ workflow: w, title: w.name, event: planned ?? null })} />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="starter">
+            <p className="muted small">Workflow to zapisany sposób startu: nazwa, długość i czy włączać skupienie. Na przykład:</p>
+            <div className="cluster">
+              {STARTER_WORKFLOWS.map((w) => (
+                <Chip key={w.name} icon="plus" onClick={() => { saveWorkflow(w); toast(`Dodano „${w.name}”.`, 'ok'); }}>{w.name}</Chip>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="block" aria-labelledby="hist-h">
+        <div className="block__head">
+          <h2 className="block__title" id="hist-h">Historia</h2>
+          <button className="btn btn--quiet" onClick={() => setManualOpen(true)}><Icon name="plus" size={16} /> Dopisz sesję</button>
+        </div>
+        {history.length ? (
+          <div className="hist">
+            {history.map(([d, list]) => (
+              <div key={d} className="hist__day">
+                <p className="hist__date"><span>{dayLabel(d, clock.today)}</span><span className="num">{durationLabel(list.reduce((t, s) => t + s.active_seconds, 0) / 60)}</span></p>
+                {list.map((s) => {
+                  const wf = s.workflow_id ? snap.workflows.find((w) => w.id === s.workflow_id) : null;
+                  return (
+                    <button key={s.id} className="hist__row" onClick={() => setOpenSession(s)}>
+                      <span className="hist__time num">{hhmm(zoned(s.started_at, tz).minutes)}</span>
+                      <span className="hist__what">
+                        <span>{s.title || wf?.name || (s.source === 'manual' ? 'Sesja dopisana' : 'Sesja')}</span>
+                        {s.outcome_note && <span className="hist__note">{s.outcome_note}</span>}
+                      </span>
+                      <span className="hist__dur num">{durationLabel(s.active_seconds / 60)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="muted small">Pierwsza sesja pojawi się tutaj — razem z czasem policzonym z zegara.</p>
+        )}
+      </section>
+
+      <section className="block">
+        <div className="list">
+          <Row leading={<Icon name="folder" />} title="Projekty" sub="Albumy, EP-ki i kolekcje utworów — opcjonalnie" onClick={() => navigate('/projekty')} />
         </div>
       </section>
-      <div className="create2__body">
-      {running ? (
-        <Button variant="primary" size="lg" block icon="play" onClick={() => navigate('/sesja')}>Wróć do trwającej sesji</Button>
-      ) : (
-        <>
-          <div className="typetiles" role="group" aria-label="Zacznij sesję wybranego rodzaju">
-            {MAIN_TYPES.map((t) => (
-              <button key={t.type} className="typetile" onClick={() => go(() => startSession({ type: t.type, category: t.category }))}>
-                <span className="typetile__icon"><Icon name={t.icon} size={24} /></span>
-                <span className="typetile__label">{t.label}</span>
-              </button>
-            ))}
-          </div>
-          <div className="cluster typemore" role="group" aria-label="Inne rodzaje">
-            {MORE_TYPES.map((t) => <Chip key={t.type} icon={t.icon} onClick={() => go(() => startSession({ type: t.type, category: t.category }))}>{t.label}</Chip>)}
-          </div>
-        </>
-      )}
-      <div className="screen create" style={{ padding: 0 }}>
 
-      {today.length > 0 && (
-        <Section title="Zaplanowane na dziś">
-          <div className="list">
-            {today.map((e) => (
-              <Row key={e.id} title={e.title} sub={<><span className="num">{hhmm(e.start_min)}–{hhmm(e.end_min)}</span>{e.category ? ` · ${CATEGORY_SHORT[e.category]}` : ''}{e.priority === 3 ? ' · opcjonalnie' : ''}</>}
-                trailing={<Button size="sm" variant="secondary" icon="play" disabled={!!running} onClick={() => go(() => startSession({ event: e }))}>Start</Button>} />
-            ))}
-          </div>
-        </Section>
-      )}
-
-      {recs.length > 0 && (
-        <Section title="Trening do beatu" aside={<button className="btn btn--quiet" onClick={() => navigate('/rozwoj')}>Wszystkie</button>}>
-          <div className="list">
-            {recs.map((r) => (
-              <Row key={r.exercise.id} leading={<Cover seed={r.exercise.id} tone={r.exercise.category} size={52} />} title={r.exercise.title}
-                sub={`${CATEGORY_SHORT[r.exercise.category]} · ok. ${r.exercise.minutes} min${r.reasons[0] ? ` · ${r.reasons[0]}` : ''}`}
-                onClick={() => navigate(`/rozwoj/obszar/${r.exercise.category}?ex=${r.exercise.id}`)} />
-            ))}
-          </div>
-        </Section>
-      )}
-
-      <Section title="Projekty" aside={<button className="btn btn--quiet" onClick={() => navigate('/projekty')}>Wszystkie</button>}>
-        {projects.length ? (
-          <div className="list">
-            {projects.map((p) => (
-              <Row key={p.id} leading={<Cover seed={p.id} size={52} />} title={p.title} sub={`${STAGE_LABEL[p.stage]}${p.last_worked_at ? ` · ostatnio ${dayLabel(new Date(p.last_worked_at).toISOString().slice(0, 10), clock.today).toLowerCase()}` : ''}`}
-                onClick={() => navigate(`/projekty/${p.id}`)} />
-            ))}
-          </div>
-        ) : (
-          <Empty icon="folder" title="Bez projektów" action={<Button size="sm" variant="secondary" icon="plus" onClick={() => navigate('/projekty?new=1')}>Dodaj utwór</Button>}>
-            Projekt to lekka karta utworu: etap, notatki, link do pliku poza aplikacją. Bez wgrywania sesji z DAW.
-          </Empty>
-        )}
-      </Section>
-
-      <Section title="Ostatnie sesje" aside={<button className="btn btn--quiet" onClick={() => setManualOpen(true)}>Dodaj ręcznie</button>}>
-        {recent.length ? (
-          <div className="list">
-            {recent.map((s) => (
-              <Row key={s.id} title={s.title || TYPE_LABEL[s.type]}
-                sub={`${dayLabel(sessionDate(s, tz), clock.today)} · ${durationLabel(s.active_seconds / 60)}${s.outcome !== 'none' ? ` · ${OUTCOME_LABEL[s.outcome]}` : ''}${s.source === 'manual' ? ' · wpis ręczny' : ''}`}
-                trailing={null} />
-            ))}
-          </div>
-        ) : (
-          <p className="muted small">Pierwsza zapisana sesja pojawi się tutaj.</p>
-        )}
-      </Section>
-
-      <ManualSessionSheet open={manualOpen} onClose={() => setManualOpen(false)} today={clock.today} />
-      </div>
-      </div>
+      <WorkflowSheet value={edit} onClose={() => setEdit(null)} />
+      <ManualSheet open={manualOpen} onClose={() => setManualOpen(false)} today={clock.today} />
+      <SessionSheet session={openSession} onClose={() => setOpenSession(null)} />
     </div>
   );
 }
 
-function ManualSessionSheet({ open, onClose, today }: { open: boolean; onClose: () => void; today: string }) {
+function WorkflowSheet({ value, onClose }: { value: Partial<Workflow> | null; onClose: () => void }) {
+  const [draft, setDraft] = useState<Partial<Workflow>>({});
+  const [key, setKey] = useState<unknown>(null);
+  if (value !== key) { setKey(value); setDraft(value ?? {}); }
+  const existing = !!value?.id;
+  const save = () => {
+    if (!draft.name?.trim()) return;
+    saveWorkflow({ ...draft, name: draft.name.trim() } as Workflow);
+    toast(existing ? 'Zapisano workflow.' : `Dodano „${draft.name.trim()}”.`, 'ok');
+    onClose();
+  };
+  return (
+    <Sheet open={!!value} onClose={onClose} title={existing ? 'Workflow' : 'Nowe workflow'}
+      footer={<>{existing && <Button variant="danger" icon="trash" aria-label="Usuń" onClick={() => { removeWorkflow(value as Workflow); onClose(); }} />}<Button variant="primary" disabled={!draft.name?.trim()} onClick={save}>Zapisz</Button></>}>
+      <Field label="Nazwa">
+        <input className="input" value={draft.name ?? ''} onChange={(e) => setDraft({ ...draft, name: e.target.value })} maxLength={60} placeholder="np. Wieczór w studiu" data-autofocus />
+      </Field>
+      <div className="stack">
+        <span className="field__label">Preferowana długość</span>
+        <div className="cluster">
+          {QUICK_LENGTHS.map((m) => <Chip key={String(m)} on={(draft.minutes ?? null) === m} onClick={() => setDraft({ ...draft, minutes: m })}>{lengthLabel(m)}</Chip>)}
+        </div>
+      </div>
+      <Toggle checked={!!draft.focus} onChange={(v) => setDraft({ ...draft, focus: v })} label="Zaczynaj w trybie skupienia" hint="Ekran nie gaśnie; jeśli ustawiono skrót iOS, PULSE go uruchomi." />
+      <div className="stack">
+        <span className="field__label">Kolor</span>
+        <div className="tones" role="radiogroup" aria-label="Kolor">
+          {Array.from({ length: TONES }, (_, i) => (
+            <button key={i} role="radio" aria-checked={(draft.tone ?? 0) === i} aria-label={`Kolor ${i + 1}`} className={`tone${(draft.tone ?? 0) === i ? ' is-on' : ''}`} style={{ '--tone': `var(--tone-${i})` } as React.CSSProperties} onClick={() => setDraft({ ...draft, tone: i })} />
+          ))}
+        </div>
+      </div>
+      <Field label="Przypomnienie dla siebie" hint="Opcjonalne, widoczne w trakcie sesji. PULSE nic tu nie narzuca.">
+        <input className="input" value={draft.intention ?? ''} onChange={(e) => setDraft({ ...draft, intention: e.target.value })} maxLength={300} placeholder="np. telefon w drugim pokoju" />
+      </Field>
+    </Sheet>
+  );
+}
+
+function ManualSheet({ open, onClose, today }: { open: boolean; onClose: () => void; today: string }) {
   const [date, setDate] = useState(today);
   const [start, setStart] = useState('19:00');
   const [minutes, setMinutes] = useState(60);
-  const [type, setType] = useState<SessionType>('create');
-  const [outcome, setOutcome] = useState<Outcome>('none');
   const [note, setNote] = useState('');
-  const valid = date <= today && minutes >= 5 && minutes <= 960 && parseHHMM(start) != null;
+  const valid = parseHHMM(start) != null && minutes >= 5 && date <= today;
   return (
-    <Sheet open={open} onClose={onClose} title="Sesja bez timera" tall
-      footer={<Button variant="primary" block disabled={!valid} onClick={() => {
-        logManualSession({ date, startMin: parseHHMM(start)!, minutes, type, outcome, note });
-        toast(`Dodano sesję: ${durationLabel(minutes)}.`, 'ok');
+    <Sheet open={open} onClose={onClose} title="Dopisz sesję"
+      footer={<Button variant="primary" disabled={!valid} onClick={() => {
+        logManualSession({ date, startMin: parseHHMM(start)!, minutes, type: 'create', outcome: 'none', note });
+        toast(`Dopisano ${durationLabel(minutes)}.`, 'ok');
         onClose();
-      }}>Zapisz sesję</Button>}>
-      <p className="muted small">Gdy zapomnisz włączyć timer. Wpis jest oznaczony jako ręczny w statystykach.</p>
+      }}>Zapisz</Button>}>
+      <p className="muted small">Dla sesji bez timera — np. gdy telefon został w drugim pokoju.</p>
       <div className="field-row">
-        <Field label="Dzień"><input className="input" type="date" max={today} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+        <Field label="Dzień"><input className="input" type="date" value={date} max={today} onChange={(e) => setDate(e.target.value)} /></Field>
         <Field label="Start"><input className="input" type="time" value={start} onChange={(e) => setStart(e.target.value)} /></Field>
       </div>
-      <Field label="Czas (min)"><input className="input" type="number" inputMode="numeric" min={5} max={960} value={minutes} onChange={(e) => setMinutes(Number(e.target.value) || 0)} /></Field>
-      <div className="stack"><span className="field__label">Rodzaj</span>
-        <div className="cluster">{FLOW_TYPES.map((t) => <Chip key={t} on={type === t} onClick={() => setType(t)}>{TYPE_LABEL[t]}</Chip>)}</div>
+      <div className="stack">
+        <span className="field__label">Ile trwała</span>
+        <div className="cluster">{[30, 45, 60, 90, 120, 180, 240].map((m) => <Chip key={m} on={minutes === m} onClick={() => setMinutes(m)}>{durationLabel(m)}</Chip>)}</div>
       </div>
-      <div className="stack"><span className="field__label">Rezultat</span>
-        <div className="cluster">{OUTCOMES.map((o) => <Chip key={o} on={outcome === o} onClick={() => setOutcome(o)}>{OUTCOME_LABEL[o]}</Chip>)}</div>
-      </div>
-      <Field label="Notatka"><input className="input" value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} /></Field>
+      <Field label="Notatka (opcjonalnie)"><input className="input" value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} /></Field>
+    </Sheet>
+  );
+}
+
+function SessionSheet({ session, onClose }: { session: Session | null; onClose: () => void }) {
+  const [note, setNote] = useState('');
+  const [key, setKey] = useState<string | null>(null);
+  if ((session?.id ?? null) !== key) { setKey(session?.id ?? null); setNote(session?.outcome_note ?? ''); }
+  if (!session) return null;
+  return (
+    <Sheet open onClose={onClose} title={durationLabel(session.active_seconds / 60)}
+      footer={<>
+        <Button variant="danger" icon="trash" aria-label="Usuń sesję" onClick={() => {
+          const prev = { ...session };
+          remove('sessions', session.id);
+          toast('Usunięto sesję.', 'ok', { label: 'Cofnij', run: () => commit([{ entity: 'sessions', row: { ...prev, deleted_at: null, updated_at: Date.now() } }]) });
+          onClose();
+        }} />
+        <Button variant="primary" onClick={() => { updateSession(session, { outcome_note: note }); onClose(); }}>Zapisz</Button>
+      </>}>
+      <p className="muted small">{session.source === 'manual' ? 'Sesja dopisana ręcznie.' : 'Czas policzony z zegara (bez pauz).'}{session.event_id ? ' Zaliczyła zaplanowany blok.' : ''}</p>
+      <Field label="Notatka"><textarea className="textarea" value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} placeholder="Co działo się w tej sesji — tylko dla Ciebie." /></Field>
     </Sheet>
   );
 }

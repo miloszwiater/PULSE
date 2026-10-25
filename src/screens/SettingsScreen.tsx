@@ -1,6 +1,4 @@
 import { useEffect, useState } from 'react';
-import { SKILL_CATEGORIES } from '../../shared/schema';
-import { CATEGORY_LABEL } from '../../shared/catalog/exercises';
 import { hhmm, parseHHMM } from '../../shared/time';
 import { api, ApiError } from '../data/api';
 import { clearLocal, persistNow, useProfile, useStore } from '../data/store';
@@ -82,7 +80,7 @@ export function SettingsScreen() {
 
       <button className="row row--action" onClick={() => navigate('/profil')} style={{ marginBottom: 8 }}>
         <span className="row__lead"><Icon name="user" /></span>
-        <span className="row__main"><span className="row__title">Profil i wygląd</span><span className="row__sub">Wizja, wartości, scena w tle</span></span>
+        <span className="row__main"><span className="row__title">Profil i muzyka</span><span className="row__sub">Styl, inspiracje, scena w tle</span></span>
         <span className="row__trail"><Icon name="chevron" size={18} /></span>
       </button>
 
@@ -91,7 +89,6 @@ export function SettingsScreen() {
           <Field label="Imię"><input className="input" value={name} onChange={(e) => setName(e.target.value)} onBlur={() => name !== p.display_name && patchProfile({ display_name: name.trim() })} maxLength={80} /></Field>
           <Field label="Pseudonim artystyczny"><input className="input" value={artist} onChange={(e) => setArtist(e.target.value)} onBlur={() => artist !== p.artist_name && patchProfile({ artist_name: artist.trim() })} maxLength={80} /></Field>
           <Field label="Strefa czasowa"><input className="input" value={p.timezone} readOnly /></Field>
-          <Field label="Start programu 365"><input className="input" type="date" value={p.start_date ?? ''} onChange={(e) => e.target.value && patchProfile({ start_date: e.target.value })} /></Field>
         </div>
       </Section>
 
@@ -101,14 +98,14 @@ export function SettingsScreen() {
             <Field label="Pobudka"><input className="input" type="time" defaultValue={hhmm(p.wake_min)} onBlur={(e) => { const v = parseHHMM(e.target.value); if (v != null) patchProfile({ wake_min: v }); }} /></Field>
             <Field label="Sen"><input className="input" type="time" defaultValue={hhmm(p.bed_min)} onBlur={(e) => { const v = parseHHMM(e.target.value); if (v != null) patchProfile({ bed_min: v }); }} /></Field>
           </div>
-          <div className="stack"><span className="field__label">Sesje w tygodniu</span>
+          <div className="stack"><span className="field__label">Rytm docelowy — sesje w tygodniu</span>
             <div className="cluster">{[1, 2, 3, 4, 5, 6, 7].map((n) => <Chip key={n} on={p.weekly_session_target === n} onClick={() => patchProfile({ weekly_session_target: n })}>{n}</Chip>)}</div>
           </div>
           <div className="stack"><span className="field__label">Typowa sesja</span>
             <div className="cluster">{[45, 60, 90, 120, 150].map((n) => <Chip key={n} on={p.session_default_min === n} onClick={() => patchProfile({ session_default_min: n })}>{n} min</Chip>)}</div>
           </div>
-          <div className="stack"><span className="field__label">Priorytetowe obszary</span>
-            <div className="cluster">{SKILL_CATEGORIES.map((c) => <Chip key={c} on={p.focus_categories.includes(c)} onClick={() => patchProfile({ focus_categories: p.focus_categories.includes(c) ? p.focus_categories.filter((x) => x !== c) : [...p.focus_categories, c].slice(0, 5) })}>{CATEGORY_LABEL[c]}</Chip>)}</div>
+          <div className="stack"><span className="field__label">Bloki nauki proponowane w tygodniu</span>
+            <div className="cluster">{[0, 1, 2, 3].map((n) => <Chip key={n} on={p.learning_per_week === n} onClick={() => patchProfile({ learning_per_week: n })}>{n === 0 ? 'Nie proponuj' : n}</Chip>)}</div>
           </div>
         </div>
       </Section>
@@ -123,27 +120,25 @@ export function SettingsScreen() {
             <Toggle checked={!!subscribed && p.reminders.enabled} onChange={(v) => void (v ? enablePush() : disablePush())} label="Powiadomienia na tym urządzeniu" hint="iOS decyduje o dokładnym czasie dostarczenia — przypomnienia mogą przyjść z opóźnieniem." />
           )}
           <Toggle checked={p.reminders.morning_brief} onChange={(v) => patchProfile({ reminders: { ...p.reminders, morning_brief: v } })} label="Poranny skrót dnia" hint="Pół godziny po pobudce." />
-          <Toggle checked={p.reminders.session_start} onChange={(v) => patchProfile({ reminders: { ...p.reminders, session_start: v } })} label="Przed zaplanowaną sesją" hint="Ok. 15 minut wcześniej." />
-          <Toggle checked={p.reminders.weekly_review} onChange={(v) => patchProfile({ reminders: { ...p.reminders, weekly_review: v } })} label="Podsumowanie tygodnia" hint="Niedziela wieczorem." />
+          <Toggle checked={p.reminders.session_start} onChange={(v) => patchProfile({ reminders: { ...p.reminders, session_start: v } })} label="Przed zaplanowaną muzyką" hint="Ok. 15 minut wcześniej." />
+          <Toggle checked={p.reminders.weekly_review} onChange={(v) => patchProfile({ reminders: { ...p.reminders, weekly_review: v } })} label="Tydzień w muzyce" hint="Niedziela wieczorem." />
+          <p className="dim xs">Najwyżej 2 przypomnienia na dobę. Po tygodniu bez muzyki może przyjść jedno spokojne przypomnienie o powrocie — bez liczenia zaległości.</p>
           <Toggle checked={p.reminders.quiet_during_work} onChange={(v) => patchProfile({ reminders: { ...p.reminders, quiet_during_work: v } })} label="Cisza w czasie pracy" hint="Nic nie przychodzi w godzinach pracy z grafiku." />
           {subscribed && <Button variant="secondary" size="sm" onClick={() => api('/api/push/test', { body: {} }).then(() => toast('Wysłano testowe powiadomienie.', 'ok')).catch((e: ApiError) => toast(e.message, 'error'))}>Wyślij test</Button>}
         </div>
       </Section>
 
       <Section title="Skupienie">
-        <div className="focuscard">
-          <span className="focuscard__icon"><Icon name="lock" size={20} /></span>
-          <div className="stack" style={{ gap: 6 }}>
-            <p><strong>Blokowanie aplikacji wymaga natywnej aplikacji iOS.</strong></p>
-            <p className="muted small">Blokowanie TikToka czy Instagrama podczas sesji wymaga API Czasu przed ekranem (Screen Time), niedostępnego dla aplikacji webowych. PULSE nie udaje tej funkcji.</p>
-            <p className="muted small">Co działa teraz: tryb skupienia w sesji (ekran nie gaśnie, widok bez rozpraszaczy) oraz systemowy tryb Skupienie w iOS — możesz go włączać ręcznie lub automatyzacją w aplikacji Skróty.</p>
-          </div>
-        </div>
+        <button className="row row--action" onClick={() => navigate('/skupienie')}>
+          <span className="row__lead"><Icon name="focus" /></span>
+          <span className="row__main"><span className="row__title">Rozpraszacze i blokady iOS</span><span className="row__sub">Co PULSE może, a co ustawia się w systemie</span></span>
+          <span className="row__trail"><Icon name="chevron" size={18} /></span>
+        </button>
       </Section>
 
-      <Section title="Mentor AI">
+      <Section title="Towarzysz AI">
         <p className="muted small">
-          {mentor == null ? 'Nie udało się sprawdzić stanu.' : mentor.configured ? `Połączony (model: ${mentor.model}). Wywołania tylko z serwera, gdy wysyłasz wiadomość.` : 'Niepodłączony — brak klucza ANTHROPIC_API_KEY na serwerze. Obserwacje z danych działają bez AI.'}
+          {mentor == null ? 'Nie udało się sprawdzić stanu.' : mentor.configured ? `Połączony (model: ${mentor.model}). Typowe wiadomości są rozumiane lokalnie; pozostałe idą do AI wyłącznie przez serwer.` : 'AI niepodłączone — brak klucza ANTHROPIC_API_KEY na serwerze. Towarzysz rozumie typowe sytuacje lokalnie (praca, energia, choroba, wena, nauka, powrót).'}
         </p>
       </Section>
 

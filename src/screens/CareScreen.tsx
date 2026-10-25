@@ -63,7 +63,7 @@ export function CareScreen() {
         ) : <p className="muted small">Bez wpisów. Raportowanie jest dobrowolne.</p>}
       </Section>
       <Section title="Prywatność">
-        <p className="muted small">Wpisy o samopoczuciu służą tylko do dostosowania planu i są widoczne dla mentora AI, gdy z nim rozmawiasz. PULSE nie diagnozuje i nie zastępuje lekarza.</p>
+        <p className="muted small">Wpisy o samopoczuciu służą tylko do dostosowania planu i są widoczne dla Towarzysza AI, gdy z nim rozmawiasz. PULSE nie diagnozuje i nie zastępuje lekarza.</p>
         {history.length > 0 && <button className="btn btn--quiet" onClick={() => setClearOpen(true)}>Wyczyść historię samopoczucia</button>}
       </Section>
       <Confirm open={clearOpen} onClose={() => setClearOpen(false)} danger title="Wyczyścić historię?" confirmLabel="Wyczyść"

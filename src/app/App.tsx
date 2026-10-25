@@ -8,24 +8,23 @@ import { TabBar } from './TabBar';
 import { ActiveSessionPill } from './ActiveSessionPill';
 import { AuthScreen } from '../screens/AuthScreen';
 import { Onboarding } from '../screens/Onboarding';
-import { StartScreen } from '../screens/StartScreen';
+import { TodayScreen } from '../screens/TodayScreen';
 import { PlanScreen } from '../screens/plan/PlanScreen';
 import { CreateScreen } from '../screens/create/CreateScreen';
 import { SessionScreen } from '../screens/create/SessionScreen';
-import { ProjectsScreen, ProjectScreen } from '../screens/create/Projects';
 import { Splash } from './Splash';
 
-// Less frequent screens load on demand; Start/Plan/Twórz/Sesja stay in the main bundle.
-const GrowthScreen = lazy(() => import('../screens/growth/GrowthScreen').then((m) => ({ default: m.GrowthScreen })));
-const SkillScreen = lazy(() => import('../screens/growth/SkillScreen').then((m) => ({ default: m.SkillScreen })));
-const LibraryScreen = lazy(() => import('../screens/growth/LibraryScreen').then((m) => ({ default: m.LibraryScreen })));
-const StyleScreen = lazy(() => import('../screens/growth/StyleScreen').then((m) => ({ default: m.StyleScreen })));
-const StatsScreen = lazy(() => import('../screens/growth/StatsScreen').then((m) => ({ default: m.StatsScreen })));
-const CareerScreen = lazy(() => import('../screens/career/CareerScreen').then((m) => ({ default: m.CareerScreen })));
-const RoadmapScreen = lazy(() => import('../screens/career/RoadmapScreen').then((m) => ({ default: m.RoadmapScreen })));
-const PromotionScreen = lazy(() => import('../screens/career/PromotionScreen').then((m) => ({ default: m.PromotionScreen })));
-const GoalsScreen = lazy(() => import('../screens/career/GoalsScreen').then((m) => ({ default: m.GoalsScreen })));
-const MentorScreen = lazy(() => import('../screens/MentorScreen').then((m) => ({ default: m.MentorScreen })));
+// Less frequent screens load on demand; Dziś/Plan/Twórz/Sesja stay in the main bundle.
+const AcademyScreen = lazy(() => import('../screens/learn/AcademyScreen').then((m) => ({ default: m.AcademyScreen })));
+const PathScreen = lazy(() => import('../screens/learn/AcademyScreen').then((m) => ({ default: m.PathScreen })));
+const LessonScreen = lazy(() => import('../screens/learn/AcademyScreen').then((m) => ({ default: m.LessonScreen })));
+const BooksScreen = lazy(() => import('../screens/learn/BooksScreen').then((m) => ({ default: m.BooksScreen })));
+const YouScreen = lazy(() => import('../screens/you/YouScreen').then((m) => ({ default: m.YouScreen })));
+const RhythmScreen = lazy(() => import('../screens/you/YouScreen').then((m) => ({ default: m.RhythmScreen })));
+const ProjectsScreen = lazy(() => import('../screens/create/Projects').then((m) => ({ default: m.ProjectsScreen })));
+const ProjectScreen = lazy(() => import('../screens/create/Projects').then((m) => ({ default: m.ProjectScreen })));
+const FocusScreen = lazy(() => import('../screens/FocusScreen').then((m) => ({ default: m.FocusScreen })));
+const CompanionScreen = lazy(() => import('../screens/CompanionScreen').then((m) => ({ default: m.CompanionScreen })));
 const CareScreen = lazy(() => import('../screens/CareScreen').then((m) => ({ default: m.CareScreen })));
 const ProfileScreen = lazy(() => import('../screens/ProfileScreen').then((m) => ({ default: m.ProfileScreen })));
 const SettingsScreen = lazy(() => import('../screens/SettingsScreen').then((m) => ({ default: m.SettingsScreen })));
@@ -95,41 +94,45 @@ export function App() {
   return <Shell />;
 }
 
+/** Old (v1/v2) addresses still open something sensible — bookmarks and notifications keep working. */
+const LEGACY: Record<string, string> = {
+  '/rozwoj': '/nauka', '/rozwoj/biblioteka': '/nauka/ksiazki', '/rozwoj/statystyki': '/ty/rytm', '/rozwoj/styl': '/profil',
+  '/kariera': '/ty', '/mentor': '/towarzysz',
+};
+
 function Shell() {
   const path = usePath();
-  const fullscreen = path === '/sesja' || path === '/mentor';
+  const fullscreen = path === '/sesja' || path === '/towarzysz';
   let screen: ReactNode;
   const seg = path.split('/').filter(Boolean);
-  switch (seg[0]) {
-    case undefined: screen = <StartScreen />; break;
+  const legacy = LEGACY[path] ?? (seg[0] === 'rozwoj' ? '/nauka' : seg[0] === 'kariera' ? '/ty' : null);
+  if (legacy) queueMicrotask(() => navigate(legacy, { replace: true }));
+  switch (legacy ? '__legacy' : seg[0]) {
+    case undefined: screen = <TodayScreen />; break;
     case 'plan': screen = <PlanScreen />; break;
     case 'tworz': screen = <CreateScreen />; break;
     case 'sesja': screen = <SessionScreen />; break;
     case 'projekty': screen = seg[1] ? <ProjectScreen id={seg[1]} /> : <ProjectsScreen />; break;
-    case 'rozwoj':
-      screen = seg[1] === 'obszar' && seg[2] ? <SkillScreen category={seg[2]} />
-        : seg[1] === 'biblioteka' ? <LibraryScreen />
-        : seg[1] === 'styl' ? <StyleScreen />
-        : seg[1] === 'statystyki' ? <StatsScreen />
-        : <GrowthScreen />;
+    case 'nauka':
+      screen = seg[1] === 'ksiazki' ? <BooksScreen />
+        : seg[2] ? <LessonScreen lessonKey={seg[2]} />
+        : seg[1] ? <PathScreen pathKey={seg[1]} />
+        : <AcademyScreen />;
       break;
-    case 'kariera':
-      screen = seg[1] === 'roadmapa' ? <RoadmapScreen />
-        : seg[1] === 'promocja' ? <PromotionScreen />
-        : seg[1] === 'cele' ? <GoalsScreen />
-        : <CareerScreen />;
-      break;
-    case 'mentor': screen = <MentorScreen />; break;
+    case 'ty': screen = seg[1] === 'rytm' ? <RhythmScreen /> : <YouScreen />; break;
+    case 'towarzysz': screen = <CompanionScreen />; break;
+    case 'skupienie': screen = <FocusScreen />; break;
     case 'care': screen = <CareScreen />; break;
     case 'ustawienia': screen = <SettingsScreen />; break;
     case 'profil': screen = <ProfileScreen />; break;
+    case '__legacy': screen = null; break;
     default:
       queueMicrotask(() => navigate('/', { replace: true }));
       screen = null;
   }
   return (
     <div className="shell" data-tab={tabOf(path)}>
-      <main key={seg[0] ?? 'start'} className="shell__main"><Suspense fallback={<div className="screen" aria-busy="true" />}>{screen}</Suspense></main>
+      <main key={path} className="shell__main"><Suspense fallback={<div className="screen" aria-busy="true" />}>{screen}</Suspense></main>
       {!fullscreen && <ActiveSessionPill />}
       {!fullscreen && <TabBar />}
       <Toaster />

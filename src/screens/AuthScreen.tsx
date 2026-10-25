@@ -42,7 +42,7 @@ export function AuthScreen({ onDone }: { onDone: (u: AuthUser) => void }) {
         <svg className="auth__line" viewBox="0 0 400 60" preserveAspectRatio="none" aria-hidden="true">
           <path pathLength={1} d="M0 34 H150 L162 40 L174 8 L188 52 L198 34 H260 L268 38 L276 24 L284 34 H400" />
         </svg>
-        <p className="auth__lead">Rok świadomego rozwoju artysty. Plan, który rozumie Twoją pracę i odpoczynek, sesje, które się liczą, i mentor, który mówi na podstawie faktów.</p>
+        <p className="auth__lead">Muzyka jako regularna część życia. Plan, który rozumie pracę i odpoczynek, sesja jednym dotknięciem i nauka we własnym tempie.</p>
       </div>
       <form className="auth__form" onSubmit={submit} noValidate>
         <h1 className="auth__title">{mode === 'login' ? 'Zaloguj się' : cfg?.signupOpen ? 'Załóż swoje konto' : 'Załóż konto'}</h1>

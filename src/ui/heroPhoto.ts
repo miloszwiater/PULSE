@@ -33,3 +33,17 @@ async function downscale(file: File, max: number): Promise<string> {
   c.getContext('2d')!.drawImage(bmp, 0, 0, c.width, c.height);
   return c.toDataURL('image/jpeg', 0.82);
 }
+
+/** Project cover: centre square crop, small JPEG data URL that syncs with the project row. */
+export async function coverFromFile(file: File, size = 480): Promise<string> {
+  const bmp = await createImageBitmap(file);
+  const side = Math.min(bmp.width, bmp.height);
+  const c = document.createElement('canvas');
+  c.width = size;
+  c.height = size;
+  c.getContext('2d')!.drawImage(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side, 0, 0, size, size);
+  let q = 0.8;
+  let url = c.toDataURL('image/jpeg', q);
+  while (url.length > 200_000 && q > 0.4) { q -= 0.1; url = c.toDataURL('image/jpeg', q); }
+  return url;
+}

@@ -17,10 +17,10 @@ export const SIGNALS: { value: CareSignal; label: string; icon: IconName; tone: 
 ];
 
 const RESPONSE: Record<CareSignal, string> = {
-  energized: 'Zapisane. Jeśli masz dziś okno, to dobry dzień na dłuższą sesję albo domknięcie czegoś.',
-  low: 'Dziś priorytetem jest regeneracja. Krótka, lekka sesja jest opcją, nie obowiązkiem.',
-  sick: 'Odpoczynek jest teraz najważniejszy. Cel tygodnia zmniejsza się automatycznie, a regularność nie jest za to karana.',
-  overloaded: 'Zdejmuję presję: dziś najwyżej 30 minut, jeśli w ogóle. Zaplanowane rzeczy możesz przesunąć bez kumulowania.',
+  energized: 'Zapisane. Jeśli jest dziś wolne okno, to dobry dzień na dłuższą sesję.',
+  low: 'Najpierw woda, jedzenie i chwila bez ekranu. Muzyka dziś tylko jeśli sama przyjdzie — coś lekkiego albo nic.',
+  sick: 'Odpoczynek jest teraz najważniejszy. Rytm tygodnia zmniejsza się sam, a choroba nie przerywa serii. Przy niepokojących objawach — lekarz.',
+  overloaded: 'Zdejmuję presję: dziś najwyżej 30 minut, jeśli w ogóle. Zaplanowane rzeczy można przesunąć bez nadrabiania.',
 };
 
 /** Quick energy check-in. Reacts by checking the plan and offering adjustments (never forced). */
@@ -75,7 +75,7 @@ export function CheckIn({ compact, tiles }: { compact?: boolean; tiles?: boolean
           <span className="field__label">Na ile dni odpuścić plan?</span>
           <div className="cluster">{[1, 2, 3, 5, 7].map((n) => <Chip key={n} on={days === n} onClick={() => setDays(n)}>{n === 1 ? 'Dziś' : `${n} dni`}</Chip>)}</div>
         </div>
-        <Field label="Notatka" hint="Opcjonalna, widoczna tylko dla Ciebie i mentora.">
+        <Field label="Notatka" hint="Opcjonalna, widoczna tylko dla Ciebie i Towarzysza.">
           <input className="input" value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} />
         </Field>
       </Sheet>

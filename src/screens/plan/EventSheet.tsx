@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { eventSchema, routineExceptionSchema, SKILL_CATEGORIES, type EventKind, type PEvent } from '../../../shared/schema';
+import { eventSchema, routineExceptionSchema, type EventKind, type PEvent } from '../../../shared/schema';
 import { newId } from '../../../shared/domain/snapshot';
 import { detectConflicts, resolveConflicts } from '../../../shared/domain/planner';
-import { CATEGORY_SHORT, EXERCISES, EXERCISE_BY_ID } from '../../../shared/catalog/exercises';
+import { EXERCISE_BY_ID } from '../../../shared/catalog/exercises';
+import { PATHS, LESSON_BY_KEY } from '../../../shared/catalog/academy';
 import { hhmm, parseHHMM } from '../../../shared/time';
 import type { Block } from '../../../shared/domain/day';
 import type { Proposal } from '../../../shared/schema';
@@ -14,7 +15,7 @@ import { Button, Chip, Field, Sheet, Toggle } from '../../ui/kit';
 import { KIND_LABEL, STATUS_LABEL, longDate } from '../../ui/format';
 import { toast } from '../../ui/toast';
 
-const EDITABLE_KINDS: EventKind[] = ['music', 'training', 'reading', 'promo', 'work', 'commute', 'private', 'relationship', 'sport', 'rest', 'other'];
+const EDITABLE_KINDS: EventKind[] = ['music', 'training', 'reading', 'work', 'commute', 'private', 'relationship', 'sport', 'rest', 'other'];
 
 export type EventDraft = { id?: string; date: string; start_min: number; end_min: number; kind?: EventKind; title?: string; notes?: string };
 
@@ -59,7 +60,8 @@ export function EventSheet({ draft, onClose, onSaved }: { draft: EventDraft | nu
 
   const save = () => {
     if (!valid) return;
-    const title = form.title.trim() || (ex ? ex.title : KIND_LABEL[form.kind]);
+    const lesson = form.lesson_key ? LESSON_BY_KEY[form.lesson_key] : null;
+    const title = form.title.trim() || (lesson ? `Nauka: ${lesson.title}` : ex ? ex.title : KIND_LABEL[form.kind]);
     commit([{ entity: 'events', row: { ...form, title, start_min: s!, end_min: e! } }]);
     toast(isNew ? 'Dodano do planu.' : 'Zapisano zmiany.', 'ok');
     onClose();
@@ -67,7 +69,7 @@ export function EventSheet({ draft, onClose, onSaved }: { draft: EventDraft | nu
   };
 
   const done = () => {
-    logManualSession({ date: form.date, startMin: form.start_min, minutes: form.end_min - form.start_min, type: form.kind === 'training' ? 'training' : 'create', outcome: form.exercise_id ? 'exercise' : 'none', note: '', event: form });
+    logManualSession({ date: form.date, startMin: form.start_min, minutes: form.end_min - form.start_min, type: form.kind === 'training' ? 'training' : 'create', outcome: 'none', note: '', event: form });
     toast('Oznaczono jako zrobione — czas z planu zapisany jako sesja ręczna.', 'ok');
     onClose();
   };
@@ -78,6 +80,7 @@ export function EventSheet({ draft, onClose, onSaved }: { draft: EventDraft | nu
       {!isNew && commitment && form.status === 'planned' && (
         <div className="event-actions">
           <Button variant="primary" icon="play" onClick={() => { startSession({ event: form }); onClose(); navigate('/sesja'); }}>Rozpocznij</Button>
+          {form.lesson_key && LESSON_BY_KEY[form.lesson_key] && <Button variant="secondary" onClick={() => { onClose(); navigate(`/nauka/${LESSON_BY_KEY[form.lesson_key!].path}/${form.lesson_key}`); }}>Lekcja</Button>}
           <Button variant="secondary" icon="check" onClick={done}>Zrobione</Button>
           <Button variant="secondary" onClick={() => { setEventStatus(form, 'skipped', 'Oznaczono jako pominięte.'); onClose(); }}>Pomiń</Button>
           <Button variant="secondary" onClick={() => { setEventStatus(form, 'excused', 'Usprawiedliwione — nie wpływa na regularność.'); onClose(); }}>Usprawiedliw</Button>
@@ -108,15 +111,12 @@ export function EventSheet({ draft, onClose, onSaved }: { draft: EventDraft | nu
       </div>
 
       {form.kind === 'training' && (
-        <Field label="Ćwiczenie">
-          <select className="select" value={form.exercise_id ?? ''} onChange={(ev) => {
-            const x = EXERCISE_BY_ID[ev.target.value];
-            setForm({ ...form, exercise_id: x?.id ?? null, category: x?.category ?? form.category });
-          }}>
-            <option value="">Bez konkretnego ćwiczenia</option>
-            {SKILL_CATEGORIES.map((c) => (
-              <optgroup key={c} label={CATEGORY_SHORT[c]}>
-                {EXERCISES.filter((x) => x.category === c).map((x) => <option key={x.id} value={x.id}>{x.title} (poz. {x.level})</option>)}
+        <Field label="Lekcja z Akademii" hint="Opcjonalnie. Nauka nie wlicza się do rytmu muzyki i można ją pominąć bez konsekwencji.">
+          <select className="select" value={form.lesson_key ?? ''} onChange={(ev) => setForm({ ...form, lesson_key: ev.target.value || null })}>
+            <option value="">Bez konkretnej lekcji</option>
+            {PATHS.map((p) => (
+              <optgroup key={p.key} label={p.title}>
+                {p.lessons.map((l) => <option key={l.key} value={l.key}>{l.title}</option>)}
               </optgroup>
             ))}
           </select>

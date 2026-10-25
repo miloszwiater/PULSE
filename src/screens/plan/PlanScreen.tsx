@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { COMMITMENT_KINDS, DAY_STATUSES, type DayStatus, type PEvent, type Proposal } from '../../../shared/schema';
+import { COMMITMENT_KINDS, DAY_STATUSES, type DayStatus, type EventKind, type PEvent, type Proposal } from '../../../shared/schema';
 import { dayContext, type Block } from '../../../shared/domain/day';
 import { detectConflicts, generateWeekPlan, resolveConflicts, type DayNote } from '../../../shared/domain/planner';
 import { countsAsSession, sessionDate } from '../../../shared/domain/sessions';
@@ -38,7 +38,11 @@ export function PlanScreen() {
   const follow = useConflictFollowUp();
   const conflicts = useMemo(() => detectConflicts(snap, clock, 14), [snap, clock]);
 
-  useEffect(() => { if (q.get('gen') === '1') setPlan(generateWeekPlan(snap, clock)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (q.get('gen') === '1') setPlan(generateWeekPlan(snap, clock));
+    // Deep link from Roadmap/Kariera: add a concrete step to the plan.
+    if (q.get('add')) setDraft({ date: clock.today, start_min: 1080, end_min: 1140, kind: (q.get('kind') as EventKind) || 'other', title: q.get('add') ?? '', notes: q.get('notes') ?? '' });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const shift = (n: number) => setDate(view === 'day' ? addDays(date, n) : view === 'week' ? addDays(date, 7 * n) : addMonths(date, n));
   const title = view === 'month' ? `${MONTHS[parseDate(date).m - 1]} ${parseDate(date).y}` : view === 'week' ? `Tydzień ${dayLabel(weekStart(date), clock.today).toLowerCase()}` : dayLabel(date, clock.today);

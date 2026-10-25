@@ -16,7 +16,7 @@ import { toast } from '../../ui/toast';
 
 const EDITABLE_KINDS: EventKind[] = ['music', 'training', 'reading', 'promo', 'work', 'commute', 'private', 'relationship', 'sport', 'rest', 'other'];
 
-export type EventDraft = { id?: string; date: string; start_min: number; end_min: number; kind?: EventKind };
+export type EventDraft = { id?: string; date: string; start_min: number; end_min: number; kind?: EventKind; title?: string; notes?: string };
 
 /** After any change to obligations, surface the consequences immediately. */
 export function useConflictFollowUp() {
@@ -39,7 +39,7 @@ export function EventSheet({ draft, onClose, onSaved }: { draft: EventDraft | nu
   useEffect(() => {
     if (!draft) { setForm(null); return; }
     const base = existing ?? eventSchema.parse({
-      id: newId('ev'), updated_at: Date.now(), kind: draft.kind ?? 'music', title: '', date: draft.date,
+      id: newId('ev'), updated_at: Date.now(), kind: draft.kind ?? 'music', title: draft.title ?? '', notes: draft.notes ?? '', date: draft.date,
       start_min: draft.start_min, end_min: draft.end_min, source: 'user',
     });
     setForm(base);

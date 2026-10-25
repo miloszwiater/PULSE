@@ -2,13 +2,13 @@ import Anthropic from '@anthropic-ai/sdk';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { Snapshot } from '../shared/domain/snapshot';
-import { alive, newId } from '../shared/domain/snapshot';
+
 import { buildMentorContext, catalogText } from '../shared/domain/mentorContext';
 import { EXERCISE_BY_ID } from '../shared/catalog/exercises';
 import { BOOK_BY_KEY } from '../shared/catalog/books';
-import { eventSchema, type PEvent, type Proposal } from '../shared/schema';
-import { hhmm, parseHHMM, plDate, zoned } from '../shared/time';
-import { RULES, dayContext } from '../shared/domain/day';
+import type { Proposal } from '../shared/schema';
+import { buildMentorProposal, mentorChangeSchema } from '../shared/domain/mentorProposals';
+import { zoned } from '../shared/time';
 import type { AppEnv, Env } from './env';
 import { rateLimit } from './auth';
 import { applyOps, pull } from './sync';
@@ -31,16 +31,6 @@ Zasady, których nie łamiesz:
 
 const SYSTEM_FULL = `${SYSTEM}\n\n${catalogText()}`;
 
-const changeSchema = z.object({
-  action: z.enum(['move', 'shorten', 'excuse', 'add']),
-  event_id: z.string().nullable(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
-  start: z.string().nullable(),
-  minutes: z.number().int().min(15).max(300).nullable(),
-  title: z.string().max(160).nullable(),
-  kind: z.enum(['music', 'training', 'reading', 'promo', 'rest']).nullable(),
-  exercise_id: z.string().nullable(),
-});
 
 const TOOLS: Anthropic.Beta.BetaTool[] = [
   {
@@ -114,58 +104,6 @@ async function loadSnapshot(env: Env, userId: string): Promise<Snapshot> {
   };
 }
 
-/** Turns validated model tool input into a proposal of concrete row changes. Invalid items are dropped with a note. */
-function buildProposal(snap: Snapshot, input: { title: string; rationale: string; changes: z.infer<typeof changeSchema>[] }, now: number): { proposal: Proposal | null; problems: string[] } {
-  const problems: string[] = [];
-  const pid = newId('pr');
-  const changes: Proposal['changes'] = [];
-  const events = alive(snap.events);
-  for (const ch of input.changes.slice(0, 20)) {
-    const e = ch.event_id ? events.find((x) => x.id === ch.event_id) : undefined;
-    if (ch.action !== 'add' && !e) { problems.push(`nie znaleziono wydarzenia ${ch.event_id}`); continue; }
-    if (e && (e.kind === 'work' || e.kind === 'commute' || e.kind === 'relationship' || e.kind === 'private')) {
-      problems.push(`„${e.title}” to zobowiązanie życiowe — mentor go nie zmienia`); continue;
-    }
-    const before = e ? (e as unknown as Record<string, unknown>) : null;
-    if (ch.action === 'excuse' && e) {
-      changes.push({ entity: 'events', before, after: { ...e, status: 'excused', updated_at: now, proposal_id: pid }, label: `${e.title} (${plDate(e.date)}) → odpuszczone bez kary` });
-    } else if (ch.action === 'shorten' && e && ch.minutes) {
-      const end = e.start_min + Math.min(ch.minutes, e.end_min - e.start_min);
-      changes.push({ entity: 'events', before, after: { ...e, end_min: end, updated_at: now, proposal_id: pid }, label: `${e.title}: skrócone do ${end - e.start_min} min` });
-    } else if (ch.action === 'move' && e && ch.date && ch.start) {
-      const start = parseHHMM(ch.start);
-      if (start == null) { problems.push(`zła godzina ${ch.start}`); continue; }
-      const len = ch.minutes ?? e.end_min - e.start_min;
-      const ctx = dayContext(snap, ch.date, undefined, { ignoreEventId: e.id });
-      const clash = ctx.blocks.find((b) => b.start < start + len && start < b.end);
-      if (clash) { problems.push(`${plDate(ch.date)} ${ch.start} koliduje z: ${clash.title}`); continue; }
-      if (ctx.mode === 'none') { problems.push(`${plDate(ch.date)}: ${ctx.reason}`); continue; }
-      changes.push({ entity: 'events', before, after: { ...e, date: ch.date, start_min: start, end_min: start + len, updated_at: now, proposal_id: pid, source: 'mentor' }, label: `${e.title} → ${plDate(ch.date)} ${hhmm(start)}–${hhmm(start + len)}` });
-    } else if (ch.action === 'add' && ch.date && ch.start && ch.minutes && ch.title) {
-      const start = parseHHMM(ch.start);
-      if (start == null) { problems.push(`zła godzina ${ch.start}`); continue; }
-      const ctx = dayContext(snap, ch.date);
-      const clash = ctx.blocks.find((b) => b.start < start + ch.minutes! && start < b.end);
-      if (clash) { problems.push(`${plDate(ch.date)} ${ch.start} koliduje z: ${clash.title}`); continue; }
-      if (ctx.mode === 'none' && ch.kind !== 'rest') { problems.push(`${plDate(ch.date)}: ${ctx.reason}`); continue; }
-      const minutes = ctx.mode === 'light' && ch.kind !== 'rest' ? Math.min(ch.minutes, RULES.lightMax) : ch.minutes;
-      const ex = ch.exercise_id ? EXERCISE_BY_ID[ch.exercise_id] : undefined;
-      const row: PEvent = eventSchema.parse({
-        id: newId('ev'), updated_at: now, kind: ch.kind ?? 'music', title: ch.title, date: ch.date, start_min: start,
-        end_min: start + minutes, source: 'mentor', proposal_id: pid, exercise_id: ex?.id ?? null, category: ex?.category ?? null,
-      });
-      changes.push({ entity: 'events', before: null, after: row as unknown as Record<string, unknown>, label: `Nowe: ${row.title} ${plDate(row.date)} ${hhmm(row.start_min)}–${hhmm(row.end_min)}` });
-    } else {
-      problems.push(`niepełna zmiana (${ch.action})`);
-    }
-  }
-  if (!changes.length) return { proposal: null, problems };
-  return {
-    proposal: { id: pid, updated_at: now, deleted_at: null, source: 'mentor', title: input.title.slice(0, 200), rationale: input.rationale.slice(0, 3000), changes, status: 'pending', decided_at: null },
-    problems,
-  };
-}
-
 export const mentorRoutes = new Hono<AppEnv>();
 
 mentorRoutes.get('/status', (c) => c.json({ configured: !!c.env.ANTHROPIC_API_KEY, model: c.env.AI_MODEL || DEFAULT_MODEL }));
@@ -173,7 +111,7 @@ mentorRoutes.get('/status', (c) => c.json({ configured: !!c.env.ANTHROPIC_API_KE
 const chatBody = z.object({
   message_id: z.string().min(8).max(64),
   content: z.string().trim().min(1).max(6000),
-  mode: z.enum(['chat', 'weekly_review']).default('chat'),
+  mode: z.enum(['chat', 'weekly_review', 'monthly_review']).default('chat'),
 });
 
 mentorRoutes.post('/chat', async (c) => {
@@ -204,7 +142,9 @@ mentorRoutes.post('/chat', async (c) => {
   while (messages.length && messages[0].role !== 'user') messages.shift();
   const ask = mode === 'weekly_review'
     ? 'Przygotuj przegląd mijającego tygodnia: co zostało zrobione, które umiejętności były rozwijane, jakie były przeszkody, i jedną realistyczną zmianę na kolejny tydzień. Do 250 słów.'
-    : content;
+    : mode === 'monthly_review'
+      ? 'Przygotuj przegląd ostatnich 4 tygodni: twórczość (czas, rezultaty), praca i regeneracja, postęp celów i roadmapy, nierównowagi w rozwoju. Zakończ dwiema realistycznymi zmianami na kolejny miesiąc. Do 300 słów.'
+      : content;
   const userTurn: Anthropic.Beta.BetaMessageParam = {
     role: 'user',
     content: [{ type: 'text', text: `<kontekst>\n${contextText}\n</kontekst>` }, { type: 'text', text: ask }],
@@ -246,9 +186,9 @@ mentorRoutes.post('/chat', async (c) => {
           if (ok) cards.push({ type: 'book', id: input.catalog_key as string, why: String(input.why ?? '') });
           results.push({ type: 'tool_result', tool_use_id: u.id, content: ok ? 'Karta książki pokazana.' : 'Nie ma takiej książki w katalogu.', is_error: !ok });
         } else if (u.name === 'propose_plan_changes') {
-          const p = z.object({ title: z.string(), rationale: z.string(), changes: z.array(changeSchema) }).safeParse(input);
+          const p = z.object({ title: z.string(), rationale: z.string(), changes: z.array(mentorChangeSchema) }).safeParse(input);
           if (!p.success) { results.push({ type: 'tool_result', tool_use_id: u.id, content: 'Niepoprawne dane propozycji.', is_error: true }); continue; }
-          const { proposal, problems } = buildProposal(snap, p.data, now);
+          const { proposal, problems } = buildMentorProposal(snap, p.data, now);
           if (proposal) { proposals.push(proposal); cards.push({ type: 'proposal', id: proposal.id, title: proposal.title }); }
           results.push({
             type: 'tool_result', tool_use_id: u.id,
@@ -268,7 +208,7 @@ mentorRoutes.post('/chat', async (c) => {
     return c.json({ error: 'Nie udało się połączyć z mentorem.' }, 502);
   }
 
-  const userMsg = { id: `${message_id}_u`, updated_at: now, deleted_at: null, role: 'user', content: mode === 'weekly_review' ? 'Przegląd tygodnia' : content, at: now, proposal_id: null, cards: [] };
+  const userMsg = { id: `${message_id}_u`, updated_at: now, deleted_at: null, role: 'user', content: mode === 'weekly_review' ? 'Przegląd tygodnia' : mode === 'monthly_review' ? 'Przegląd miesiąca' : content, at: now, proposal_id: null, cards: [] };
   const botMsg = { id: `${message_id}_a`, updated_at: now + 1, deleted_at: null, role: 'assistant', content: text || 'Brak odpowiedzi tekstowej — zobacz karty poniżej.', at: now + 1, proposal_id: proposals[0]?.id ?? null, cards };
   await applyOps(c.env, user.id, [
     ...proposals.map((p) => ({ op_id: `op_${p.id}`, entity: 'proposals' as const, action: 'put' as const, id: p.id, data: p as unknown as Record<string, unknown>, ts: now })),

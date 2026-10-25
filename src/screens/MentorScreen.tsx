@@ -66,14 +66,14 @@ export function MentorScreen() {
   useEffect(() => { endRef.current?.scrollIntoView({ block: 'end' }); }, [messages.length, pending]);
   useEffect(() => { if (messages.length) setShowObs(false); }, [messages.length]);
 
-  const send = async (content: string, mode: 'chat' | 'weekly_review' = 'chat') => {
+  const send = async (content: string, mode: 'chat' | 'weekly_review' | 'monthly_review' = 'chat') => {
     if (!content.trim() && mode === 'chat') return;
     const id = newId('mm');
-    setPending({ id, content: mode === 'weekly_review' ? 'Przegląd tygodnia' : content.trim() });
+    setPending({ id, content: mode === 'weekly_review' ? 'Przegląd tygodnia' : mode === 'monthly_review' ? 'Przegląd miesiąca' : content.trim() });
     setError(null);
     setText('');
     try {
-      await api('/api/mentor/chat', { body: { message_id: id, content: mode === 'weekly_review' ? 'review' : content.trim(), mode } });
+      await api('/api/mentor/chat', { body: { message_id: id, content: mode === 'chat' ? content.trim() : 'review', mode } });
       await syncNow();
     } catch (e) {
       const err = e as ApiError;
@@ -85,6 +85,7 @@ export function MentorScreen() {
   };
   useEffect(() => {
     if (q.get('review') === '1' && status?.configured) void send('', 'weekly_review');
+    if (q.get('review') === 'month' && status?.configured) void send('', 'monthly_review');
   }, [status?.configured]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const configured = status?.configured;
@@ -136,6 +137,7 @@ export function MentorScreen() {
           <div className="composer__quick">
             {QUICK.map((qq) => <Chip key={qq} onClick={() => void send(qq)}>{qq}</Chip>)}
             <Chip icon="chart" onClick={() => void send('', 'weekly_review')}>Przegląd tygodnia</Chip>
+            <Chip icon="calendar" onClick={() => void send('', 'monthly_review')}>Przegląd miesiąca</Chip>
           </div>
         )}
         <form className="composer__form" onSubmit={(e) => { e.preventDefault(); void send(text); }}>

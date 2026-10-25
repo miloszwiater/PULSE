@@ -1,0 +1,32 @@
+// Production build check: service worker takes control, app opens offline with local data, writes queue and sync later.
+import { chromium, devices } from '@playwright/test';
+const BASE = process.env.BASE ?? 'http://localhost:4173';
+const out = process.argv[2];
+const browser = await chromium.launch();
+const ctx = await browser.newContext({ ...devices['iPhone 13'], locale: 'pl-PL', timezoneId: 'Europe/Warsaw' });
+const page = await ctx.newPage();
+await page.request.post(BASE + '/api/auth/register', { headers: { 'x-pulse': '1' }, data: { email: `o${Date.now()}@pulse.test`, password: 'haslo-testowe-123', name: 'O', code: 'dev-invite' } });
+await page.goto(BASE + '/');
+for (let i = 0; i < 6; i++) { await page.locator('.onb__foot .btn--primary').click(); await page.waitForTimeout(120); }
+await page.waitForFunction(() => navigator.serviceWorker.controller !== null || new Promise((r) => navigator.serviceWorker.addEventListener('controllerchange', () => r(true))), null, { timeout: 15000 }).catch(() => null);
+await page.reload();
+await page.waitForTimeout(1500);
+const controlled = await page.evaluate(() => !!navigator.serviceWorker.controller);
+await ctx.setOffline(true);
+await page.goto(BASE + '/plan').catch((e) => console.log('nav error', e.message));
+await page.waitForTimeout(1500);
+const planVisible = await page.locator('.screen-head__title', { hasText: 'Plan' }).isVisible().catch(() => false);
+await page.goto(BASE + '/').catch(() => null);
+await page.waitForTimeout(800);
+await page.getByRole('button', { name: 'Mam energię' }).click();
+await page.waitForTimeout(500);
+const badge = await page.locator('.sync-badge').getAttribute('aria-label').catch(() => null);
+await page.screenshot({ path: `${out}/q_offline.png` });
+await ctx.setOffline(false);
+await page.evaluate(() => window.dispatchEvent(new Event('online')));
+await page.waitForTimeout(2500);
+const badgeAfter = await page.locator('.sync-badge').count();
+const r = await page.request.get(BASE + '/api/sync?since=0', { headers: { 'x-pulse': '1' } });
+const care = (await r.json()).rows.care.length;
+console.log(JSON.stringify({ controlled, planVisible, offlineBadge: badge, badgeAfterOnline: badgeAfter, careRowsOnServer: care }));
+await browser.close();

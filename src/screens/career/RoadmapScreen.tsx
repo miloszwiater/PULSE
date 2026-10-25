@@ -5,6 +5,7 @@ import { newId } from '../../../shared/domain/snapshot';
 import { useStore, remove } from '../../data/store';
 import { useClock } from '../../data/clock';
 import { putRow } from '../../data/actions';
+import { navigate } from '../../app/router';
 import { Button, Field, ScreenHeader, Section, Sheet } from '../../ui/kit';
 import { Icon } from '../../ui/Icon';
 import { toast } from '../../ui/toast';
@@ -47,7 +48,12 @@ export function RoadmapScreen() {
                         {ev.met && m.status !== 'done' && <button className="btn btn--quiet" onClick={() => toggle(m, 'done')}>Zalicz</button>}
                       </p>
                     )}
-                    {!m.template_key && m.status !== 'done' && <button className="btn btn--quiet" onClick={() => remove('milestones', m.id)}>Usuń</button>}
+                    {m.status !== 'done' && (
+                      <span className="cluster" style={{ gap: 0 }}>
+                        <button className="btn btn--quiet" onClick={() => navigate(`/plan?add=${encodeURIComponent(`Krok: ${m.title}`)}&kind=${m.phase === 3 || m.phase === 4 ? 'promo' : 'music'}&notes=${encodeURIComponent(m.description)}`)}>Zaplanuj krok</button>
+                        {!m.template_key && <button className="btn btn--quiet" onClick={() => remove('milestones', m.id)}>Usuń</button>}
+                      </span>
+                    )}
                   </div>
                 </li>
               );

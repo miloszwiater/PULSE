@@ -168,7 +168,7 @@ function MonthReport({ from, to }: { from: string; to: string }) {
   const r = rangeStats(snap, from, to, clock.today);
   const goals = snap.goals.filter((g) => g.status === 'active');
   return (
-    <Section title="Raport miesiąca">
+    <Section title="Raport miesiąca" aside={<Button size="sm" variant="ghost" icon="mentor" onClick={() => navigate('/mentor?review=month')}>Przegląd mentora</Button>}>
       <div className="report">
         <div><h3>Twórczość</h3><p>{durationLabel(r.minutes)} w {r.sessionCount} sesjach. Dema: {r.demos}, ukończone utwory: {r.finishedTracks}.</p></div>
         <div><h3>Praca</h3><p>{durationLabel(data.workMin)} pracy i dojazdów według grafiku.</p></div>

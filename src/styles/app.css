@@ -1,0 +1,100 @@
+/* ── Shell ─────────────────────────────────────────────── */
+.shell__main { min-height: 100dvh; }
+
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  height: calc(var(--tabbar-h) + var(--safe-bottom));
+  padding: 0 max(var(--s-2), calc((100vw - 640px) / 2)) var(--safe-bottom);
+  background: rgba(5, 7, 15, 0.86);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+  border-top: 1px solid var(--line);
+}
+.tabbar__item {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 3px;
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: color var(--t-fast);
+}
+.tabbar__item.is-on { color: var(--text); }
+.tabbar__icon { display: grid; place-items: center; height: 28px; position: relative; }
+.tabbar__item.is-on .tabbar__icon::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--violet);
+}
+.tabbar__item--create .tabbar__icon {
+  width: 46px;
+  height: 32px;
+  border-radius: var(--r-pill);
+  background: var(--violet-wash);
+  color: var(--violet-hi);
+  box-shadow: inset 0 0 0 1px var(--violet-line);
+}
+.tabbar__item--create.is-on .tabbar__icon { background: var(--violet); color: #fff; box-shadow: none; }
+.tabbar__item--create.is-on .tabbar__icon::after { display: none; }
+
+.session-pill {
+  position: fixed;
+  z-index: 41;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(var(--tabbar-h) + var(--safe-bottom) + var(--s-3));
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 0 var(--s-4) 0 var(--s-3);
+  height: 44px;
+  border-radius: var(--r-pill);
+  background: var(--ink-3);
+  border: 1px solid var(--violet-line);
+  box-shadow: var(--lift);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.session-pill__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--violet); animation: beat 1.6s var(--ease-in-out) infinite; }
+.session-pill.is-paused .session-pill__dot { background: var(--warn); animation: none; }
+.session-pill__time { font-family: var(--font-display); font-weight: 600; }
+.session-pill__label { color: var(--text-2); }
+@keyframes beat { 0%, 100% { transform: scale(1); opacity: 1; } 15% { transform: scale(1.6); opacity: 0.7; } 30% { transform: scale(1); opacity: 1; } }
+
+/* ── Brand ─────────────────────────────────────────────── */
+.splash { min-height: 100dvh; display: grid; place-items: center; }
+.wordmark { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-display); font-weight: 700; letter-spacing: 0.06em; color: var(--text); }
+.wordmark--sm { font-size: 15px; }
+.wordmark--md { font-size: 20px; }
+.wordmark--lg { font-size: 34px; gap: 12px; }
+.wordmark__beat { width: 1.9em; height: 1em; fill: none; stroke: var(--violet); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ── Pulse line (signature) ────────────────────────────── */
+.pulse { margin: 0; }
+.pulse__svg { width: 100%; height: 92px; display: block; overflow: visible; }
+.pulse__base { stroke: var(--line-strong); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.pulse__trace { fill: none; stroke: var(--violet); stroke-width: 2.25; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.pulse__trace.is-drawing { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 1.4s var(--ease-out) 120ms forwards; }
+.pulse__ghost { fill: none; stroke: var(--blue); stroke-width: 1.5; stroke-dasharray: 3 4; opacity: 0.7; vector-effect: non-scaling-stroke; }
+.pulse__protected { fill: var(--ink-1); }
+.pulse__now { fill: var(--ink-0); stroke: var(--text); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.pulse__days { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: var(--fs-xs); color: var(--text-3); margin-top: 2px; }
+.pulse__day { display: grid; gap: 1px; }
+.pulse__day.is-today { color: var(--text); font-weight: 600; }
+.pulse__min { color: var(--text-2); font-size: 11px; }
+.pulse__day.is-future .pulse__min { color: var(--text-3); }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .pulse__trace.is-drawing { stroke-dasharray: none; animation: none; } }

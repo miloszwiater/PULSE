@@ -1,0 +1,134 @@
+import { useEffect, useState, type ReactNode } from 'react';
+import { api, ApiError } from '../data/api';
+import { clearLocal, lastUser, loadLocal, useStore, type AuthUser } from '../data/store';
+import { startSyncLoop, syncNow } from '../data/sync';
+import { Toaster } from '../ui/kit';
+import { navigate, tabOf, usePath } from './router';
+import { TabBar } from './TabBar';
+import { ActiveSessionPill } from './ActiveSessionPill';
+import { AuthScreen } from '../screens/AuthScreen';
+import { Onboarding } from '../screens/Onboarding';
+import { StartScreen } from '../screens/StartScreen';
+import { PlanScreen } from '../screens/plan/PlanScreen';
+import { CreateScreen } from '../screens/create/CreateScreen';
+import { SessionScreen } from '../screens/create/SessionScreen';
+import { ProjectsScreen, ProjectScreen } from '../screens/create/Projects';
+import { GrowthScreen } from '../screens/growth/GrowthScreen';
+import { SkillScreen } from '../screens/growth/SkillScreen';
+import { LibraryScreen } from '../screens/growth/LibraryScreen';
+import { StyleScreen } from '../screens/growth/StyleScreen';
+import { StatsScreen } from '../screens/growth/StatsScreen';
+import { CareerScreen } from '../screens/career/CareerScreen';
+import { RoadmapScreen } from '../screens/career/RoadmapScreen';
+import { PromotionScreen } from '../screens/career/PromotionScreen';
+import { GoalsScreen } from '../screens/career/GoalsScreen';
+import { MentorScreen } from '../screens/MentorScreen';
+import { CareScreen } from '../screens/CareScreen';
+import { SettingsScreen } from '../screens/SettingsScreen';
+import { Splash } from './Splash';
+
+let loopStarted = false;
+
+async function boot(): Promise<'auth' | 'ready'> {
+  const cached = await lastUser();
+  if (cached) {
+    await loadLocal(cached);
+    try {
+      const me = await api<{ user: AuthUser }>('/api/me');
+      if (me.user.id !== cached.id) { await clearLocal(); await loadLocal(me.user); }
+    } catch (e) {
+      if ((e as ApiError).status === 401) return 'auth';
+      // offline: continue with local data
+    }
+    return 'ready';
+  }
+  try {
+    const me = await api<{ user: AuthUser }>('/api/me');
+    await loadLocal(me.user);
+    return 'ready';
+  } catch {
+    return 'auth';
+  }
+}
+
+export function App() {
+  const [phase, setPhase] = useState<'boot' | 'auth' | 'ready'>('boot');
+  const user = useStore((s) => s.user);
+  const profile = useStore((s) => s.snap.profile);
+  const synced = useStore((s) => s.lastSyncedAt != null || s.syncState === 'offline' || s.syncState === 'error');
+
+  useEffect(() => {
+    void boot().then(setPhase);
+    const onUnauth = () => setPhase('auth');
+    window.addEventListener('pulse:unauthorized', onUnauth);
+    return () => window.removeEventListener('pulse:unauthorized', onUnauth);
+  }, []);
+
+  useEffect(() => {
+    if (phase === 'ready' && user && !loopStarted) {
+      loopStarted = true;
+      startSyncLoop();
+    } else if (phase === 'ready' && user) {
+      void syncNow();
+    }
+  }, [phase, user]);
+
+  if (phase === 'boot') return <Splash />;
+  if (phase === 'auth') {
+    return (
+      <>
+        <AuthScreen onDone={async (u) => {
+          const prev = useStore.getState().user;
+          if (prev && prev.id !== u.id) await clearLocal();
+          await loadLocal(u);
+          setPhase('ready');
+        }} />
+        <Toaster />
+      </>
+    );
+  }
+  if (!profile && !synced) return <Splash />;
+  if (!profile?.onboarding_done) return (<><Onboarding /><Toaster /></>);
+  return <Shell />;
+}
+
+function Shell() {
+  const path = usePath();
+  const fullscreen = path === '/sesja' || path === '/mentor';
+  let screen: ReactNode;
+  const seg = path.split('/').filter(Boolean);
+  switch (seg[0]) {
+    case undefined: screen = <StartScreen />; break;
+    case 'plan': screen = <PlanScreen />; break;
+    case 'tworz': screen = <CreateScreen />; break;
+    case 'sesja': screen = <SessionScreen />; break;
+    case 'projekty': screen = seg[1] ? <ProjectScreen id={seg[1]} /> : <ProjectsScreen />; break;
+    case 'rozwoj':
+      screen = seg[1] === 'obszar' && seg[2] ? <SkillScreen category={seg[2]} />
+        : seg[1] === 'biblioteka' ? <LibraryScreen />
+        : seg[1] === 'styl' ? <StyleScreen />
+        : seg[1] === 'statystyki' ? <StatsScreen />
+        : <GrowthScreen />;
+      break;
+    case 'kariera':
+      screen = seg[1] === 'roadmapa' ? <RoadmapScreen />
+        : seg[1] === 'promocja' ? <PromotionScreen />
+        : seg[1] === 'cele' ? <GoalsScreen />
+        : <CareerScreen />;
+      break;
+    case 'mentor': screen = <MentorScreen />; break;
+    case 'care': screen = <CareScreen />; break;
+    case 'ustawienia': screen = <SettingsScreen />; break;
+    default:
+      queueMicrotask(() => navigate('/', { replace: true }));
+      screen = null;
+  }
+  return (
+    <div className="shell" data-tab={tabOf(path)}>
+      <main key={seg[0] ?? 'start'} className="shell__main">{screen}</main>
+      {!fullscreen && <ActiveSessionPill />}
+      {!fullscreen && <TabBar />}
+      <Toaster />
+    </div>
+  );
+}

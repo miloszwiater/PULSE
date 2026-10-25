@@ -1,0 +1,109 @@
+/* PULSE design tokens — see DESIGN.md for rationale. */
+:root {
+  color-scheme: dark;
+
+  /* Surfaces: midnight blue-black, never neutral grey */
+  --ink-0: #05070f;
+  --ink-1: #0a0f1e;
+  --ink-2: #10172b;
+  --ink-3: #19213c;
+  --ink-4: #232d4f;
+  --line: #1d2645;
+  --line-strong: #2e3a66;
+
+  /* Text */
+  --text: #eef0fa;
+  --text-2: #a5acca;
+  --text-3: #6d7598;
+  --text-inv: #0a0d18;
+
+  /* Brand */
+  --violet: #8e6bff;
+  --violet-hi: #a98dff;
+  --violet-press: #7652f5;
+  --violet-wash: rgba(142, 107, 255, 0.13);
+  --violet-line: rgba(142, 107, 255, 0.42);
+  --blue: #4cb6ff;
+  --blue-wash: rgba(76, 182, 255, 0.12);
+
+  /* Semantic */
+  --ok: #49d5a4;
+  --ok-wash: rgba(73, 213, 164, 0.12);
+  --warn: #ffb648;
+  --warn-wash: rgba(255, 182, 72, 0.12);
+  --danger: #ff5d73;
+  --danger-wash: rgba(255, 93, 115, 0.12);
+
+  /* Life categories (calendar) */
+  --k-work: #7b86ad;
+  --k-commute: #59628a;
+  --k-music: var(--violet);
+  --k-training: #b89cff;
+  --k-reading: var(--blue);
+  --k-promo: #f2b65a;
+  --k-private: #e58bb7;
+  --k-relationship: #e58bb7;
+  --k-sport: #5fcf95;
+  --k-rest: #5b6bd6;
+  --k-other: #8a90a8;
+
+  /* Type */
+  --font-display: 'Unbounded Variable', 'Unbounded', system-ui, sans-serif;
+  --font-text: 'Onest Variable', 'Onest', system-ui, -apple-system, sans-serif;
+  --fs-xs: 0.75rem;   /* 12 */
+  --fs-sm: 0.8125rem; /* 13 */
+  --fs-base: 1rem;    /* 16 */
+  --fs-md: 1.0625rem; /* 17 */
+  --fs-lg: 1.25rem;   /* 20 */
+  --fs-xl: 1.5625rem; /* 25 */
+  --fs-2xl: 1.9375rem;/* 31 */
+  --fs-3xl: 2.75rem;  /* 44 */
+  --lh-tight: 1.15;
+  --lh-text: 1.5;
+
+  /* Space (4-based) */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+  --gutter: 20px;
+
+  /* Radius — hierarchy, not one value everywhere */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 22px;
+  --r-pill: 999px;
+
+  /* Elevation: light from above, no grey drop shadows */
+  --edge: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  --lift: 0 18px 40px -18px rgba(0, 0, 0, 0.85);
+  --glow-violet: 0 0 0 1px var(--violet-line), 0 10px 30px -12px rgba(142, 107, 255, 0.55);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --t-fast: 140ms;
+  --t-base: 220ms;
+  --t-slow: 420ms;
+
+  /* Layout */
+  --tabbar-h: 64px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --touch: 44px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-fast: 0ms;
+    --t-base: 0ms;
+    --t-slow: 0ms;
+  }
+}

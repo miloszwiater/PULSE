@@ -27,5 +27,6 @@ PULSE to mobilna PWA (iPhone), która pomaga utrzymać muzykę jako regularną c
 - iOS: nie obiecuj blokowania aplikacji ani dokładnych godzin powiadomień.
 - Żadnych sztucznych zadań twórczych („napisz 8 wersów”), żadnych wymaganych formularzy po sesji, żadnych ocen muzyki. Teoria w Akademii musi być poprawna; źródło niesprawdzone oznacz `verified: false`.
 - Towarzysz: lokalny silnik (`shared/domain/companion.ts`) najpierw; AI tylko przez serwer. Teksty utworów nigdy nie trafiają do kontekstu AI.
+- `node scripts/reset-planning.mjs --user <id> [--remote] [--apply]` — jednorazowy reset przestarzałych danych planowania jednego użytkownika (najpierw eksport bazy; domyślnie próba bez zmian).
 - `node scripts/qa-v3.mjs <dir>` — przejście głównych przepływów ze zrzutami (po `shots.mjs` + `onboard.mjs`).
 - Model AI domyślnie `claude-opus-5-5` (zmienna `AI_MODEL`); nie wpisuj identyfikatorów modeli do commitów.

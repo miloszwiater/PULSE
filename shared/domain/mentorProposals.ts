@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { eventSchema, type PEvent, type Proposal } from '../schema';
-import { EXERCISE_BY_ID } from '../catalog/exercises';
 import { hhmm, parseHHMM, plDate } from '../time';
 import { RULES, dayContext } from './day';
 import { alive, newId, type Snapshot } from './snapshot';
@@ -13,9 +12,11 @@ export const mentorChangeSchema = z.object({
   start: z.string().nullable(),
   minutes: z.number().int().min(15).max(300).nullable(),
   title: z.string().max(160).nullable(),
-  kind: z.enum(['music', 'training', 'reading', 'promo', 'rest']).nullable(),
-  exercise_id: z.string().nullable(),
+  /** Creative Workflow ('music') or recovery ('rest'). The AI never proposes specific creative tasks. */
+  kind: z.enum(['music', 'rest']).nullable(),
 });
+/** Neutral title of every planned Creative Workflow block. */
+export const MUSIC_BLOCK_TITLE = 'Czas na muzykę';
 export type MentorChange = z.infer<typeof mentorChangeSchema>;
 
 /** Turns validated model tool input into a proposal of concrete row changes. Invalid items are dropped with a note. */
@@ -53,10 +54,11 @@ export function buildMentorProposal(snap: Snapshot, input: { title: string; rati
       if (clash) { problems.push(`${plDate(ch.date)} ${ch.start} koliduje z: ${clash.title}`); continue; }
       if (ctx.mode === 'none' && ch.kind !== 'rest') { problems.push(`${plDate(ch.date)}: ${ctx.reason}`); continue; }
       const minutes = ctx.mode === 'light' && ch.kind !== 'rest' ? Math.min(ch.minutes, RULES.lightMax) : ch.minutes;
-      const ex = ch.exercise_id ? EXERCISE_BY_ID[ch.exercise_id] : undefined;
+      // PULSE guards regularity, not creativity: a music block is always just "Czas na muzykę".
+      const kind = ch.kind ?? 'music';
       const row: PEvent = eventSchema.parse({
-        id: newId('ev'), updated_at: now, kind: ch.kind ?? 'music', title: ch.title, date: ch.date, start_min: start,
-        end_min: start + minutes, source: 'mentor', proposal_id: pid, exercise_id: ex?.id ?? null, category: ex?.category ?? null,
+        id: newId('ev'), updated_at: now, kind, title: kind === 'music' ? MUSIC_BLOCK_TITLE : ch.title.slice(0, 160), date: ch.date, start_min: start,
+        end_min: start + minutes, source: 'mentor', proposal_id: pid,
       });
       changes.push({ entity: 'events', before: null, after: row as unknown as Record<string, unknown>, label: `Nowe: ${row.title} ${plDate(row.date)} ${hhmm(row.start_min)}–${hhmm(row.end_min)}` });
     } else {

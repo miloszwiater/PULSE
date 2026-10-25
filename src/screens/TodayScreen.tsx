@@ -48,6 +48,7 @@ export function TodayScreen() {
   const todays = snap.events.filter((e) => e.date === clock.today && (e.kind === 'music' || e.kind === 'training') && e.status === 'planned' && e.end_min > clock.nowMin)
     .sort((a, b) => a.start_min - b.start_min);
   const next = todays[0] ?? null;
+  const needsSetup = !snap.events.some((e) => (e.kind === 'music' || e.kind === 'training') && e.status === 'planned' && e.date >= clock.today) && pending.length === 0;
   const win = nextFreeWindow(ctx);
   const doneToday = days.find((d) => d.date === clock.today)?.minutes ?? 0;
 
@@ -89,8 +90,15 @@ export function TodayScreen() {
       </div>
 
       <div className="today__body">
-        {(conflicts.length > 0 || pending.length > 0) && (
+        {(conflicts.length > 0 || pending.length > 0 || needsSetup) && (
           <div className="notice-list">
+            {needsSetup && (
+              <button className="notice notice--violet" onClick={() => navigate('/plan?setup=1')}>
+                <Icon name="sparkle" size={20} />
+                <span><strong>Ułóż nowy plan.</strong> Praca, dostępność, rytm tworzenia i opcjonalna nauka.</span>
+                <Icon name="chevron" size={18} />
+              </button>
+            )}
             {conflicts.length > 0 && (
               <button className="notice" onClick={() => setProposal(resolveConflicts(snap, clock, conflicts))}>
                 <Icon name="info" size={20} />

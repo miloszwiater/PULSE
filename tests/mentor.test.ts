@@ -4,7 +4,7 @@ import { buildMentorContext } from '../shared/domain/mentorContext';
 import { songSchema, type PEvent } from '../shared/schema';
 import { clock, ev, MONDAY, routine, snap, profile } from './fixtures';
 
-const ch = (c: Partial<MentorChange>): MentorChange => ({ action: 'add', event_id: null, date: null, start: null, minutes: null, title: null, kind: null, exercise_id: null, ...c });
+const ch = (c: Partial<MentorChange>): MentorChange => ({ action: 'add', event_id: null, date: null, start: null, minutes: null, title: null, kind: null, ...c });
 
 describe('mentor proposals are validated by rules, not trusted', () => {
   it('cannot touch work or relationship events', () => {
@@ -29,6 +29,14 @@ describe('mentor proposals are validated by rules, not trusted', () => {
     expect(e.end_min - e.start_min).toBe(30);
     expect(e.source).toBe('mentor');
     expect(r.proposal!.status).toBe('pending');
+  });
+
+  it('a proposed music block never carries a specific creative task', () => {
+    const r = buildMentorProposal(snap(), { title: 't', rationale: '', changes: [ch({ date: MONDAY, start: '19:00', minutes: 60, title: 'Napisz 8 wersów z metaforami', kind: 'music' })] }, 1);
+    const e = r.proposal!.changes[0].after as unknown as PEvent;
+    expect(e.title).toBe('Czas na muzykę');
+    expect(e.exercise_id).toBeNull();
+    expect(e.category).toBeNull();
   });
 
   it('refuses development work on a day marked off', () => {

@@ -20,9 +20,16 @@ v3 zmienia filozofię: PULSE pilnuje regularności, nie kreatywności; bez termi
 | Rytm: mapa dni, tygodnie, przerwy i powroty, realizacja planu, nauka, książki | gotowe | |
 | Przypomnienia: max 2/dobę, cisza w pracy, przypomnienie o powrocie | gotowe w kodzie | dostarczenie push niezweryfikowane na iPhonie |
 
+## Reset planowania (25.10.2026)
+Zmiana koncepcji unieważniła stare plany, więc dane planowania jednego konta produkcyjnego zostały wyczyszczone skryptem `scripts/reset-planning.mjs` (próba → `--apply`, tylko jeden `--user`, soft-delete, idempotentny). Przed resetem pełny eksport bazy poza repozytorium.
+- **Usunięte:** 3 zadania starego planera (z `exercise_id`, m.in. „Zmiana obrazu w 8 wersach”), 3 propozycje planu (planer/konflikt/AI), 1 wymiana z Towarzyszem zawierająca kartę propozycji.
+- **Zachowane:** sesje, ćwiczenia i poziomy, projekty i teksty, postęp nauki, książki, grafik (stałe bloki, wyjątki, wydarzenia „Praca”, prywatne), statusy dni, samopoczucie, profil, ustawienia, konto, subskrypcje push.
+- **Zabezpieczenie przed powrotem:** AI może dodać tylko blok „Czas na muzykę” (tytuł zawsze nadaje PULSE, brak `exercise_id`) albo regenerację; planer generuje wyłącznie swobodne bloki muzyki i opcjonalną naukę z Akademii.
+- **Nowy start:** gdy w planie nie ma przyszłej muzyki ani nauki, Dziś i Plan pokazują „Ułóż nowy plan” (grafik pracy, pobudka/sen, rytm, długość sesji, nauka) → propozycja do końca miesiąca do zatwierdzenia.
+
 ## Testy
-- `npm test` — 82 testy (w tym nowe: intencje Towarzysza na przykładach z briefu, zmiana 12 h → przełożenie muzyki, choroba, tryb powrotu, długa sesja, bloki nauki, plan miesiąca, „czas był” vs „ciężki dzień”, kompletność Akademii i brak sztucznych zadań, rekomendacje książek, brak tekstów w kontekście AI).
-- `npm run test:e2e` — 11 scenariuszy: sesja jednym dotknięciem z pauzą, własne workflow, timer po restarcie, auto-zaliczenie planu bez podwójnego czasu, idempotencja, serwer przelicza czas, **dane v2 po aktualizacji**, trwałość po reinstalacji (lekcja, książka, projekt z utworem), Towarzysz bez AI (propozycja → zastosowanie), choroba, brak overflow na 375 px (17 ekranów).
+- `npm test` — 83 testy (w tym nowe: intencje Towarzysza na przykładach z briefu, zmiana 12 h → przełożenie muzyki, choroba, tryb powrotu, długa sesja, bloki nauki, plan miesiąca, „czas był” vs „ciężki dzień”, kompletność Akademii i brak sztucznych zadań, rekomendacje książek, brak tekstów w kontekście AI).
+- `npm run test:e2e` — 12 scenariuszy (w tym reset planowania na lokalnej bazie: stare znika z dnia/miesiąca, nie wraca po odświeżeniu, historia i projekty zostają): sesja jednym dotknięciem z pauzą, własne workflow, timer po restarcie, auto-zaliczenie planu bez podwójnego czasu, idempotencja, serwer przelicza czas, **dane v2 po aktualizacji**, trwałość po reinstalacji (lekcja, książka, projekt z utworem), Towarzysz bez AI (propozycja → zastosowanie), choroba, brak overflow na 375 px (17 ekranów).
 - Audyt wizualny: `scripts/qa-v3.mjs` (zrzuty iPhone 13 wszystkich ekranów i stanów).
 - Nie przetestowano: prawdziwy Safari/iOS, realne wywołania AI, realne push, uruchamianie skrótów iOS.
 

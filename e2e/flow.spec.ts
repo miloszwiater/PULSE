@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { test, expect } from '@playwright/test';
 import { newUser, pull, push, warsawToday } from './helpers';
 
@@ -174,4 +175,92 @@ test('no horizontal overflow on main screens (375px)', async ({ page }) => {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow, `overflow on ${path}`).toBeLessThanOrEqual(0);
   }
+});
+
+test('planning reset removes outdated plans, keeps real history, and nothing comes back', async ({ page }) => {
+  test.setTimeout(150_000);
+  await newUser(page);
+  const me = await (await page.request.get('/api/me', { headers: { 'x-pulse': '1' } })).json();
+  const uid: string = me.user.id;
+  const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Warsaw' }).format(new Date(Date.now() + 2 * 86400e3));
+  const now = Date.now();
+  const put = (entity: string, id: string, data: Record<string, unknown>) => ({ op_id: `op_${entity}_${id}`, entity, action: 'put', id, ts: now, data: { id, updated_at: now, ...data } });
+  await push(page.request, [
+    put('events', 'ev_old_plan', { kind: 'training', title: 'Zmiana obrazu w 8 wersach', date, start_min: 600, end_min: 720, status: 'planned', source: 'planner', exercise_id: 'sw-image-shift', proposal_id: 'pr_old_plan' }),
+    put('events', 'ev_work_keep', { kind: 'work', title: 'Praca', date, start_min: 1020, end_min: 1200, status: 'planned', source: 'user' }),
+    put('proposals', 'pr_old_plan', { source: 'planner', title: 'Plan tygodnia od pn 26 paź', status: 'applied', changes: [] }),
+    put('mentor_messages', 'mm_old_a', { role: 'assistant', content: 'Stara propozycja', at: now, proposal_id: 'pr_old_plan', cards: [{ type: 'proposal', id: 'pr_old_plan', title: 'Plan' }] }),
+    put('mentor_messages', 'mm_old_u', { role: 'user', content: 'Zaplanuj mi tydzień', at: now - 1 }),
+    put('mentor_messages', 'mm_keep_a', { role: 'assistant', content: 'Zwykła odpowiedź', at: now + 5, cards: [] }),
+    put('sessions', 'se_real', { type: 'create', status: 'finished', started_at: now - 7200e3, ended_at: now - 4200e3, active_seconds: 3000, outcome_note: 'prawdziwa sesja' }),
+    put('projects', 'pj_keep', { title: 'Projekt do zachowania', stage: 'demo', kind: 'ep' }),
+    put('songs', 'so_keep', { project_id: 'pj_keep', title: 'Utwór', lyrics: 'tekst do zachowania' }),
+    put('learning', 'vocal-breath', { kind: 'lesson', path_key: 'vocal', status: 'done', done_at: now }),
+  ]);
+
+  const shows = async () => {
+    await page.goto(`/plan?d=${date}`);
+    await page.waitForTimeout(700);
+    const day = await page.getByText('Zmiana obrazu w 8 wersach').count();
+    await page.goto(`/plan?v=month&d=${date}`);
+    await page.waitForTimeout(700);
+    const month = await page.locator('.monthgrid__planned').count();
+    await page.goto(`/plan?v=week&d=${date}`);
+    await page.waitForTimeout(700);
+    const week = await page.locator('.weekrow__info', { hasText: 'bloki' }).count() + await page.locator('.weekrow__info', { hasText: '1 blok' }).count();
+    return { day, month, week };
+  };
+  await page.reload();
+  const before = await shows();
+  expect(before.day).toBeGreaterThan(0);
+  expect(before.month).toBeGreaterThan(0);
+
+  const run = (extra: string[]) => execFileSync('node', ['scripts/reset-planning.mjs', '--user', uid, ...extra], { encoding: 'utf8' });
+  const dry = run([]);
+  expect(dry).toContain('Dry run');
+  expect(dry).toContain('Zmiana obrazu w 8 wersach');
+  expect(run(['--apply'])).toContain('(should be 0): {"events":0,"proposals":0,"chat":0}');
+  expect(run([])).toContain('to remove: {"events":0,"proposals":0,"chat_assistant":0,"chat_user":0}'); // idempotent
+
+  // The device syncs on the next open; the cached rows must not survive it.
+  await page.goto('/');
+  await page.waitForTimeout(2500);
+  const after = await shows();
+  expect(after.day).toBe(0);
+  expect(after.month).toBe(0);
+  // refresh does not bring them back
+  await page.reload();
+  await page.waitForTimeout(1500);
+  expect((await shows()).day).toBe(0);
+
+  // planning offers a fresh start, and the work block + real data are intact
+  await page.goto('/plan');
+  await expect(page.getByText('Plan jest pusty.')).toBeVisible();
+  await page.goto(`/plan?d=${date}`);
+  await expect(page.getByText('Praca').first()).toBeVisible();
+  await page.goto('/tworz');
+  await expect(page.locator('.hist')).toContainText('prawdziwa sesja');
+  await page.goto('/projekty');
+  await expect(page.locator('.crate__title', { hasText: 'Projekt do zachowania' })).toBeVisible();
+  await page.goto('/nauka/vocal');
+  await expect(page.locator('.pathstate__count')).toContainText('1');
+
+  const { rows } = await pull(page.request);
+  const live = (list: Record<string, unknown>[]) => list.filter((r) => r.deleted_at == null).map((r) => r.id);
+  expect(live(rows.events)).toEqual(['ev_work_keep']);
+  expect(live(rows.proposals)).toEqual([]);
+  expect(live(rows.mentor_messages)).toEqual(['mm_keep_a']);
+  expect(live(rows.sessions)).toEqual(['se_real']);
+  expect(live(rows.songs)).toEqual(['so_keep']);
+  expect(live(rows.learning)).toEqual(['vocal-breath']);
+  expect(rows.songs.find((r) => r.id === 'so_keep')!.lyrics).toBe('tekst do zachowania');
+
+  // the new planner starts from scratch: setup sheet → neutral Creative Workflow blocks only
+  await page.goto('/plan?setup=1');
+  await page.getByRole('button', { name: /Zobacz propozycję/ }).click();
+  await expect(page.locator('.sheet__title')).toContainText('Plan do końca miesiąca');
+  const labels = await page.locator('.changes__item').allTextContents();
+  expect(labels.length).toBeGreaterThan(0);
+  for (const l of labels) expect(l).toMatch(/Czas na muzykę|Nauka:/);
+  expect(labels.join(' ')).not.toMatch(/wers|refren|nagryw|produk/i);
 });

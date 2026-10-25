@@ -15,6 +15,7 @@ import { dayLabel, KIND_LABEL, longDate, MONTHS, plural, STATUS_LABEL, WD_SHORT 
 import { EventSheet, RoutineBlockSheet, useConflictFollowUp, type EventDraft } from './EventSheet';
 import { ProposalSheet } from './ProposalSheet';
 import { RoutinesSheet } from './RoutinesSheet';
+import { PlanSetupSheet } from './PlanSetupSheet';
 import { HistorySheet } from './HistorySheet';
 
 type View = 'day' | 'week' | 'month';
@@ -35,6 +36,7 @@ export function PlanScreen() {
   const [routinesOpen, setRoutinesOpen] = useState(q.get('grafik') === '1');
   const [historyOpen, setHistoryOpen] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(q.get('setup') === '1');
   const follow = useConflictFollowUp();
   const conflicts = useMemo(() => detectConflicts(snap, clock, 14), [snap, clock]);
 
@@ -48,6 +50,7 @@ export function PlanScreen() {
   const title = view === 'month' ? `${MONTHS[parseDate(date).m - 1]} ${parseDate(date).y}` : view === 'week' ? `Tydzień ${dayLabel(weekStart(date), clock.today).toLowerCase()}` : dayLabel(date, clock.today);
   const pendingCount = snap.proposals.filter((p) => p.status === 'pending').length;
   const stale = useMemo(() => closeStaleProposal(snap, clock), [snap, clock]);
+  const needsSetup = useMemo(() => !snap.events.some((e) => (e.kind === 'music' || e.kind === 'training') && e.status === 'planned' && e.date >= clock.today) && !snap.proposals.some((x) => x.status === 'pending'), [snap.events, snap.proposals, clock.today]);
 
   return (
     <div className="screen plan">
@@ -66,6 +69,13 @@ export function PlanScreen() {
         <IconButton icon="chevron" label="Później" onClick={() => shift(1)} />
       </div>
 
+      {needsSetup && (
+        <button className="alert-row alert-row--violet" onClick={() => setSetupOpen(true)}>
+          <Icon name="sparkle" size={20} />
+          <span><strong>Plan jest pusty.</strong> Ułóż nowy harmonogram: praca, dostępność, rytm tworzenia i opcjonalna nauka.</span>
+          <Icon name="chevron" size={18} />
+        </button>
+      )}
       {conflicts.length > 0 && (
         <button className="alert-row" onClick={() => follow.setProposal(resolveConflicts(snap, clock, conflicts))}>
           <Icon name="info" size={20} />
@@ -100,6 +110,7 @@ export function PlanScreen() {
       {plan && <ProposalSheet open proposal={plan.proposal} notes={plan.notes} onClose={() => setPlan(null)} transient />}
       <ProposalSheet open={!!follow.proposal} proposal={follow.proposal} onClose={() => follow.setProposal(null)} transient={!!follow.proposal && !snap.proposals.some((p) => p.id === follow.proposal!.id)} />
       <RoutinesSheet open={routinesOpen} onClose={() => { setRoutinesOpen(false); follow.check(); if (q.get('grafik')) navigate('/plan', { replace: true }); }} />
+      <PlanSetupSheet open={setupOpen} onClose={() => { setSetupOpen(false); if (q.get('setup')) navigate('/plan', { replace: true }); }} onPlan={(proposal) => setPlan({ proposal, notes: [] })} />
       <HistorySheet open={historyOpen} onClose={() => setHistoryOpen(false)} />
       <Sheet open={statusOpen} onClose={() => setStatusOpen(false)} title={`Status: ${longDate(date)}`}>
         <p className="muted small">Status dnia zmienia plan i metryki: wolne, choroba i urlop obniżają cel tygodnia zamiast liczyć się jako porażka.</p>

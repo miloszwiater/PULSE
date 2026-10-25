@@ -34,7 +34,7 @@ const SYSTEM_FULL = `${SYSTEM}\n\n${catalogText()}`;
 const TOOLS: Anthropic.Beta.BetaTool[] = [
   {
     name: 'propose_plan_changes',
-    description: 'Tworzy propozycję zmian w kalendarzu, którą użytkownik zobaczy i może zatwierdzić lub odrzucić. Używaj tylko identyfikatorów wydarzeń z kontekstu. Akcje: move (przenieś na date/start), shorten (skróć do minutes), excuse (usprawiedliw/odpuść bez kary), add (nowe wydarzenie: date, start, minutes, title, kind, opcjonalnie exercise_id).',
+    description: 'Tworzy propozycję zmian w kalendarzu, którą użytkownik zobaczy i może zatwierdzić lub odrzucić. Używaj tylko identyfikatorów wydarzeń z kontekstu. Akcje: move (przenieś na date/start), shorten (skróć do minutes), excuse (usprawiedliw/odpuść bez kary), add (nowy blok: date, start, minutes, kind). kind to „music” (swobodna sesja Creative Workflow — tytuł zawsze ustawia PULSE, nie opisuj zadań twórczych) albo „rest” (regeneracja, title opisuje ją krótko).',
     strict: true,
     input_schema: {
       type: 'object',
@@ -48,7 +48,7 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
           items: {
             type: 'object',
             additionalProperties: false,
-            required: ['action', 'event_id', 'date', 'start', 'minutes', 'title', 'kind', 'exercise_id'],
+            required: ['action', 'event_id', 'date', 'start', 'minutes', 'title', 'kind'],
             properties: {
               action: { type: 'string', enum: ['move', 'shorten', 'excuse', 'add'] },
               event_id: { type: ['string', 'null'] },
@@ -56,8 +56,7 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
               start: { type: ['string', 'null'], description: 'HH:MM' },
               minutes: { type: ['integer', 'null'] },
               title: { type: ['string', 'null'] },
-              kind: { type: ['string', 'null'], enum: ['music', 'training', 'reading', 'promo', 'rest', null] },
-              exercise_id: { type: ['string', 'null'] },
+              kind: { type: ['string', 'null'], enum: ['music', 'rest', null] },
             },
           },
         },

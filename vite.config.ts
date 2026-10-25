@@ -32,6 +32,8 @@ export default defineConfig({
       },
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,woff2,png,svg}'],
+        // Polish UI needs latin + latin-ext only; other subsets load on demand if ever used.
+        globIgnores: ['**/*-{cyrillic,cyrillic-ext,greek,vietnamese,math,symbols}-*.woff2'],
       },
       devOptions: { enabled: false },
     }),

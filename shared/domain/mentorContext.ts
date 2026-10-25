@@ -28,6 +28,8 @@ export function buildMentorContext(snap: Snapshot, clock: Clock): string {
     L.push(`Profil: ${p.artist_name || p.display_name || 'artysta'}; gatunki: ${p.genres.join(', ') || '—'}; inspiracje: ${p.inspirations.join(', ') || '—'}.`);
     L.push(`Deklarowane mocne strony: ${p.strengths.join(', ') || '—'}; słabsze: ${p.weaknesses.join(', ') || '—'}; priorytety: ${p.focus_categories.map((c) => CATEGORY_LABEL[c]).join(', ') || '—'}.`);
     if (p.goals_text) L.push(`Cele własnymi słowami: ${p.goals_text.slice(0, 600)}`);
+    if (p.style_text) L.push(`Opis własnego stylu: ${p.style_text.slice(0, 800)}`);
+    if (p.techniques.length) L.push(`Techniki, które chce wydobywać z inspiracji: ${p.techniques.join(', ')}.`);
     L.push(`Cel tygodnia: ${p.weekly_session_target} sesji. Start programu 365: ${p.start_date ?? 'nie ustawiono'}.`);
     L.push(`Analiza tekstów: ${p.mentor_text_consent ? 'użytkownik zgodził się na analizę fragmentów, które sam wklei' : 'brak zgody — nie analizuj tekstów'}.`);
   }

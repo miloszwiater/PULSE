@@ -156,7 +156,7 @@ export function goalProgress(snap: Snapshot, g: Goal, today: string): { value: n
   if (g.metric === 'manual') return { value: g.manual_progress, target: g.target, ratio: g.target ? Math.min(1, g.manual_progress / g.target) : 0, auto: false };
   const from = g.start_date ?? snap.profile?.start_date ?? addDays(today, -365);
   const to = g.due_date && g.due_date < today ? g.due_date : today;
-  let value = 0;
+  let value: number;
   if (g.metric === 'demos' || g.metric === 'finished_tracks') {
     // Projects are the source of truth for catalog goals; sessions alone would double count reworks.
     const stages = g.metric === 'demos' ? ['demo', 'recording', 'mix', 'ready', 'released'] : ['ready', 'released'];

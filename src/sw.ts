@@ -14,7 +14,7 @@ self.addEventListener('message', (event) => {
 });
 
 self.addEventListener('push', (event) => {
-  let data: { title?: string; body?: string; url?: string; tag?: string } = {};
+  let data: { title?: string; body?: string; url?: string; tag?: string };
   try { data = event.data?.json() ?? {}; } catch { data = { body: event.data?.text() }; }
   event.waitUntil(self.registration.showNotification(data.title ?? 'PULSE', {
     body: data.body ?? '',

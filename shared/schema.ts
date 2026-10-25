@@ -70,6 +70,8 @@ export const profileSchema = z.object({
   strengths: strList.default([]),
   weaknesses: strList.default([]),
   goals_text: text(4000).default(''),
+  style_text: text(4000).default(''),
+  techniques: strList.default([]),
   timezone: text(64).default('Europe/Warsaw'),
   wake_min: minute.default(450),
   bed_min: minute.default(1410),
@@ -345,7 +347,7 @@ export interface EntityRows {
 
 /** Columns stored as JSON text in D1. */
 export const JSON_COLUMNS: Partial<Record<EntityName, string[]>> = {
-  profile: ['genres', 'inspirations', 'strengths', 'weaknesses', 'focus_categories', 'reminders'],
+  profile: ['genres', 'inspirations', 'strengths', 'weaknesses', 'focus_categories', 'reminders', 'techniques'],
   routines: ['weekdays'],
   sessions: ['pauses'],
   proposals: ['changes'],

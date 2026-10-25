@@ -52,12 +52,23 @@ export const useStore = create<State>(() => ({
 
 const KEY = (uid: string, k: string) => `pulse:${uid}:${k}`;
 
-let persistTimer: ReturnType<typeof setTimeout> | null = null;
+/**
+ * Persist right away (coalesced): a write must survive the app being killed
+ * a moment later, e.g. right after "Zapisz sesję".
+ */
+let persisting: Promise<void> | null = null;
+let persistAgain = false;
 function schedulePersist() {
-  if (persistTimer) clearTimeout(persistTimer);
-  persistTimer = setTimeout(persistNow, 250);
+  if (persisting) { persistAgain = true; return; }
+  persisting = (async () => {
+    do { persistAgain = false; await writeState(); } while (persistAgain);
+  })().finally(() => { persisting = null; });
 }
 export async function persistNow() {
+  schedulePersist();
+  await persisting;
+}
+async function writeState() {
   const { user, rows, outbox, cursor } = useStore.getState();
   if (!user) return;
   await Promise.all([

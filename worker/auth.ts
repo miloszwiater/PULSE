@@ -75,7 +75,7 @@ authRoutes.get('/config', async (c) => {
 });
 
 authRoutes.post('/register', async (c) => {
-  if (!(await rateLimit(c.env, `reg:${ip(c)}`, 5, 3600e3))) return c.json({ error: 'Za dużo prób. Spróbuj za godzinę.' }, 429);
+  if (c.env.RATE_LIMIT_OFF !== '1' && !(await rateLimit(c.env, `reg:${ip(c)}`, 10, 3600e3))) return c.json({ error: 'Za dużo prób. Spróbuj za godzinę.' }, 429);
   const body = await c.req.json().catch(() => null);
   const parsed = credentials.extend({ name: z.string().trim().max(80).default(''), code: z.string().max(200).optional() }).safeParse(body);
   if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? 'Nieprawidłowe dane.' }, 400);
@@ -99,7 +99,7 @@ authRoutes.post('/login', async (c) => {
   const parsed = credentials.safeParse(body);
   if (!parsed.success) return c.json({ error: 'Podaj e-mail i hasło.' }, 400);
   const { email, password } = parsed.data;
-  if (!(await rateLimit(c.env, `login:${ip(c)}`, 20, 900e3)) || !(await rateLimit(c.env, `login:${email}`, 10, 900e3))) {
+  if (c.env.RATE_LIMIT_OFF !== '1' && (!(await rateLimit(c.env, `login:${ip(c)}`, 20, 900e3)) || !(await rateLimit(c.env, `login:${email}`, 10, 900e3)))) {
     return c.json({ error: 'Za dużo prób logowania. Odczekaj 15 minut.' }, 429);
   }
   const user = await c.env.DB.prepare('SELECT id, email, name, password_hash FROM users WHERE email = ?').bind(email)

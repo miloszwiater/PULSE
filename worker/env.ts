@@ -6,6 +6,8 @@ export interface Env {
   AI_MODEL?: string;
   /** Required to create accounts after the first one. */
   SIGNUP_CODE?: string;
+  /** Local development / E2E only. Never set in production. */
+  RATE_LIMIT_OFF?: string;
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
   VAPID_SUBJECT?: string;

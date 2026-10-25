@@ -3,7 +3,7 @@
 Ostatnia aktualizacja: 25.10.2026 (sesja 1).
 
 ## Podsumowanie
-Działająca PWA ze wszystkimi modułami ze specyfikacji, trwałymi danymi (D1 + IndexedDB, offline), deterministycznym silnikiem planowania i dyscypliny, mentorem AI po stronie serwera oraz testami (53 jednostkowe, 9 E2E). **Niewdrożona** — brak dostępu do konta Cloudflare. **Niewypchnięta na GitHub** — push blokowany (403, brak uprawnień aplikacji Claude do zapisu w repozytorium).
+Działająca PWA ze wszystkimi modułami ze specyfikacji, trwałymi danymi (D1 + IndexedDB, offline), deterministycznym silnikiem planowania i dyscypliny, mentorem AI po stronie serwera oraz testami (53 jednostkowe, 9 E2E). **Wdrożona:** https://pulse.milosz-wiater.workers.dev (Worker `pulse`, baza D1 `pulse`, region WEUR, cron co 15 min, sekrety: SIGNUP_CODE, VAPID_*). Kod na GitHubie w gałęzi `claude/pulse-pwa-app-5avvc0`. Na tym samym koncie działa niezależna aplikacja `falling-cell-91e6` (+ D1 `zero_push_notifications`) — nie dotykać.
 
 ## Moduły
 | Moduł | Stan | Uwagi |
@@ -40,10 +40,12 @@ Działająca PWA ze wszystkimi modułami ze specyfikacji, trwałymi danymi (D1 +
 - Konflikty edycji z dwóch urządzeń: LWW na poziomie wiersza.
 - Bundle JS ~560 kB (bez dzielenia na chunki); cache'owany przez SW.
 
-## Zablokowane — potrzebne od właściciela
-1. **GitHub:** zainstalować/połączyć aplikację Claude z uprawnieniem zapisu do `miloszwiater/PULSE` (https://claude.ai/connect-github), potem `git push -u origin claude/pulse-pwa-app-5avvc0`.
-2. **Cloudflare:** token API (Workers + D1) albo `wrangler login` — kroki w `ARCHITECTURE.md` → Wdrożenie.
-3. **Opcjonalnie:** `ANTHROPIC_API_KEY` (mentor AI, koszt ~2–4 centy/wiadomość), klucze VAPID (`node scripts/vapid.mjs`).
+## Do zrobienia przez właściciela
+1. Założyć pierwsze konto na https://pulse.milosz-wiater.workers.dev (rejestracja otwarta tylko dla pierwszego użytkownika) i dodać do ekranu początkowego iPhone'a.
+2. Opcjonalnie: `ANTHROPIC_API_KEY` jako sekret Workera `pulse` (mentor AI).
+3. Usunąć/odnowić token Cloudflare wklejony w czacie.
+
+Ponowne wdrożenie: `CLOUDFLARE_API_TOKEN=… npm run deploy` (account_id i database_id są w `wrangler.jsonc`), nowe migracje: `npm run db:migrate:remote`.
 
 ## Następny krok
 Po uzyskaniu dostępu: wdrożyć (ARCHITECTURE.md → Wdrożenie), założyć konto na iPhonie, dodać do ekranu początkowego, przejść test akceptacyjny na urządzeniu (timer po blokadzie, powiadomienia, klawiatura w arkuszach). Potem: przeciąganie bloków w planie, dzielenie bundla, test mentora na realnym modelu i dostrojenie promptu.

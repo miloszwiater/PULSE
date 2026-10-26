@@ -1,0 +1,23 @@
+// Visual QA of the library: recommendations, catalog sheet, shelf, catalog search. Usage: node scripts/qa-library.mjs <dir>  (after shots.mjs + onboard.mjs)
+import { chromium, devices } from '@playwright/test';
+const out = process.argv[2];
+const browser = await chromium.launch();
+const ctx = await browser.newContext({ ...devices['iPhone 13'], storageState: `${out}/state.json`, locale: 'pl-PL', timezoneId: 'Europe/Warsaw' });
+const page = await ctx.newPage();
+const errors = [];
+page.on('pageerror', (e) => errors.push(String(e)));
+page.on('console', (m) => { if (m.type() === 'error' && !/401/.test(m.text())) errors.push(m.text()); });
+await page.goto('http://localhost:5173/nauka/ksiazki');
+await page.waitForTimeout(1200);
+const shot = async (n) => { await page.waitForTimeout(500); await page.screenshot({ path: `${out}/lib_${n}.png`, fullPage: false }); };
+await shot('1_rec');
+const overflow = async (n) => console.log(n, 'overflowX', await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth));
+await overflow('rec');
+await page.locator('.shelf__item').first().click(); await shot('2_sheet');
+await page.getByRole('button', { name: 'Chcę przeczytać' }).click(); await shot('3_book');
+await page.getByRole('button', { name: 'Zamknij' }).first().click();
+await page.getByRole('tab', { name: /^Półka/ }).click(); await shot('4_shelf');
+await page.getByRole('tab', { name: 'Katalog' }).click(); await shot('5_catalog'); await overflow('catalog');
+await page.getByLabel('Szukaj w katalogu').fill('metafor'); await shot('6_search');
+console.log(errors.join('\n') || 'no errors');
+await browser.close();

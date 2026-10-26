@@ -56,7 +56,8 @@ export type ProjectStage = (typeof PROJECT_STAGES)[number];
 export const PROJECT_KINDS = ['single', 'ep', 'album', 'collection'] as const;
 export type ProjectKind = (typeof PROJECT_KINDS)[number];
 
-export const BOOK_STATUSES = ['planned', 'bought', 'reading', 'read', 'paused', 'dropped'] as const;
+/** `planned` is the stored value behind "Chcę przeczytać" (it was "Polecona" before the library rebuild). */
+export const BOOK_STATUSES = ['suggested', 'planned', 'bought', 'reading', 'read', 'paused', 'dropped'] as const;
 export type BookStatus = (typeof BOOK_STATUSES)[number];
 
 export const CARE_SIGNALS = ['energized', 'low', 'sick', 'overloaded'] as const;
@@ -300,6 +301,12 @@ export const bookSchema = z.object({
   catalog_key: text(64).nullable().default(null),
   reason: text(1000).default(''),
   status_changed_at: ms.nullable().default(null),
+  started_at: ms.nullable().default(null),
+  finished_at: ms.nullable().default(null),
+  /** Feedback asked once after finishing; never required. */
+  rating: z.number().int().min(1).max(5).nullable().default(null),
+  clarity: z.enum(['clear', 'partly', 'hard']).nullable().default(null),
+  direction: z.enum(['more', 'different', 'unsure']).nullable().default(null),
 });
 
 export const promoTaskSchema = z.object({

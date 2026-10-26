@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { MentorMessage } from '../../shared/schema';
-import { bookSchema } from '../../shared/schema';
+import type { BookStatus } from '../../shared/schema';
 import { understand } from '../../shared/domain/companion';
 import { newId } from '../../shared/domain/snapshot';
-import { BOOK_BY_KEY } from '../../shared/catalog/books';
+import { BOOK_BY_KEY, CATEGORY_LABEL, PL_LABEL } from '../../shared/catalog/books';
+import { BOOK_STATUS_LABEL, newBookRow, ownedRow } from '../../shared/domain/library';
 import { LESSON_BY_KEY } from '../../shared/catalog/academy';
 import { api, ApiError } from '../data/api';
 import { useMentorMessages, useStore } from '../data/store';
 import { syncNow } from '../data/sync';
-import { clockNow } from '../data/clock';
+import { clockNow, useClock } from '../data/clock';
 import { putRow, setDayOff, startSession, storeLocalExchange } from '../data/actions';
 import { back, navigate, useQuery } from '../app/router';
 import { Button, IconButton } from '../ui/kit';
@@ -79,9 +80,10 @@ export function CompanionScreen() {
     setText('');
     const s = useStore.getState().snap;
     const local = understand(content, s, clockNow(), { aiAvailable: configured && online });
-    if (local.intent !== 'unknown' || !configured || !online) {
+    if ((local.intent !== 'unknown' && !local.defer) || !configured || !online) {
       const cards: MentorMessage['cards'] = [];
       if (local.proposal) cards.push({ type: 'proposal', id: local.proposal.id, title: local.proposal.title });
+      cards.push(...(local.cards ?? []));
       for (const a of local.actions) cards.push({ type: 'action', id: a.id, title: a.label });
       const reply = local.text || 'Bez połączenia z AI rozumiem tylko typowe sytuacje: pracę, energię, chorobę, wenę, naukę i powrót po przerwie.';
       storeLocalExchange(content, reply, cards, local.proposal);
@@ -162,7 +164,8 @@ const STATUS_PL = { pending: 'czeka na decyzję', applied: 'zastosowana', reject
 
 function Message({ m, onProposal }: { m: MentorMessage; onProposal: (id: string) => void }) {
   const proposals = useStore((s) => s.rows.proposals);
-  const books = useStore((s) => s.snap.books);
+  const snap = useStore((s) => s.snap);
+  const clock = useClock();
   return (
     <li className={`msg msg--${m.role}`}>
       <div className="msg__bubble">{m.role === 'assistant' ? <Formatted text={m.content} /> : m.content}</div>
@@ -184,17 +187,21 @@ function Message({ m, onProposal }: { m: MentorMessage; onProposal: (id: string)
             if (c.type === 'book') {
               const b = BOOK_BY_KEY[c.id];
               if (!b) return null;
-              const owned = books.some((x) => x.catalog_key === b.key);
+              const own = ownedRow(snap, b);
+              const add = (status: BookStatus, msg: string) => { putRow('books', newBookRow(b, status, c.why || b.why, snap, clock.today, Date.now())); toast(msg, 'ok'); };
               return (
                 <div key={c.id} className="mcard">
-                  <span className="mcard__kind">Książka</span>
+                  <span className="mcard__kind">Książka · {CATEGORY_LABEL[b.category]}</span>
                   <span className="mcard__title">{b.title} — {b.author}</span>
+                  <span className="mcard__why">{b.summary}</span>
                   {c.why && <span className="mcard__why">{c.why}</span>}
-                  <Button size="sm" variant="secondary" disabled={owned} onClick={() => {
-                    const now = Date.now();
-                    putRow('books', bookSchema.parse({ id: newId('bk'), updated_at: now, title: b.title, author: b.author, topic: b.topic, learning_goal: b.learning_goal, pages: b.pages, practice: b.practice, catalog_key: b.key, reason: c.why || b.why, status: 'planned', status_changed_at: now }));
-                    toast('Dodano do listy książek.', 'ok');
-                  }}>{owned ? 'Na liście' : 'Dodaj do listy'}</Button>
+                  <span className="mcard__why">{PL_LABEL[b.pl]}{b.verified ? '' : ' · część danych do sprawdzenia'}</span>
+                  {own ? <span className="mcard__why">Na półce: {BOOK_STATUS_LABEL[own.status]}</span> : (
+                    <div className="cluster">
+                      <Button size="sm" variant="secondary" onClick={() => add('planned', 'Dodano: Chcę przeczytać.')}>Chcę przeczytać</Button>
+                      <Button size="sm" variant="ghost" onClick={() => add('dropped', 'Nie będę jej proponować.')}>Nie dla mnie</Button>
+                    </div>
+                  )}
                 </div>
               );
             }

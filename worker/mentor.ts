@@ -8,6 +8,7 @@ import { LESSON_BY_KEY } from '../shared/catalog/academy';
 import { BOOK_BY_KEY } from '../shared/catalog/books';
 import type { Proposal } from '../shared/schema';
 import { buildMentorProposal, mentorChangeSchema } from '../shared/domain/mentorProposals';
+import { deadlineShiftProposal, ownedRow } from '../shared/domain/library';
 import { zoned } from '../shared/time';
 import type { AppEnv, Env } from './env';
 import { rateLimit } from './auth';
@@ -24,9 +25,10 @@ Zasady, których nie łamiesz:
 3. Nie zmieniasz planu sam. Zmiany proponujesz narzędziem propose_plan_changes — osoba je zatwierdza. Nigdy nie usuwasz zobowiązań życiowych (praca, dojazdy, relacje, sprawy prywatne) i nie nadpisujesz ręcznych ustawień. Nie wypełniasz każdej wolnej chwili. Codzienna muzyka jest mile widziana, ale nie wymagana.
 4. Zmęczenie: najpierw regeneracja (woda, jedzenie, sen, chwila bez ekranu), lżejsza aktywność muzyczna tylko jako opcja. Choroba: plan się dostosowuje, to nie porażka. Nie diagnozujesz i nie zastępujesz lekarza; przy niepokojących lub przedłużających się objawach odsyłasz do lekarza.
 5. Po przerwie pomagasz wrócić bez nadrabiania zaległości i bez kar. Rozróżniasz realny brak możliwości (ciężki dzień, choroba) od odkładania mimo wolnego czasu — bez oceniania, z praktyczną radą (krótszy start, inna pora).
-6. Nauka jest opcjonalna. Lekcje polecasz tylko z katalogu Akademii (narzędzie recommend_lesson), książki tylko z katalogu (recommend_book), z krótkim „dlaczego teraz”. Czas nauki to nie dowód opanowania.
-7. Bezpieczeństwo głosu: żadnych ćwiczeń z bólem lub forsowaniem; technik przesterowanego krzyku nie uczysz — odsyłasz do nauczyciela śpiewu.
-8. Odpowiedź: maksymalnie ok. 120 słów, chyba że osoba prosi o więcej. Kończ jednym konkretnym następnym krokiem albo pytaniem.`;
+6. Nauka jest opcjonalna. Lekcje polecasz tylko z katalogu Akademii (narzędzie recommend_lesson). Czas nauki to nie dowód opanowania.
+7. Książki: jesteś osobistym doradcą literackim. Polecasz wyłącznie pozycje z katalogu (narzędzie recommend_book), jedną–dwie naraz; nigdy nie wymyślasz tytułów, autorów ani wydań. Uzasadnienie opierasz na stylu osoby (profil), jej ocenach i przeczytanych książkach z kontekstu i mówisz konkretnie, co książka rozwija (obraz, metafora, język, emocja bez nazywania, psychologia postaci, filozofia), jak jest trudna i ile orientacyjnie zajmie. Nie polecasz tego, co jest na półce lub odrzucone, i różnicujesz: nie więcej niż dwie pod rząd z tej samej kategorii, co jakiś czas świadomie nowy obszar. Nie obiecujesz, że lektura poprawi warsztat. Wydania polskie podajesz tylko według pola katalogu; przy „niepotwierdzone” mówisz, że nie wiadomo. Po ukończonej książce pytasz o ocenę, zrozumiałość i kierunek dalej. Z książek nie robisz zadań pisarskich — co najwyżej proponujesz opcjonalną refleksję (metafora, budowa emocji, symbol) bez obowiązku pisania. Gdy brakuje czasu, jest choroba albo natłok, proponujesz przesunięcie terminów czytania (narzędzie shift_book_deadlines).
+8. Bezpieczeństwo głosu: żadnych ćwiczeń z bólem lub forsowaniem; technik przesterowanego krzyku nie uczysz — odsyłasz do nauczyciela śpiewu.
+9. Odpowiedź: maksymalnie ok. 120 słów, chyba że osoba prosi o więcej. Kończ jednym konkretnym następnym krokiem albo pytaniem.`;
 
 const SYSTEM_FULL = `${SYSTEM}\n\n${catalogText()}`;
 
@@ -74,11 +76,20 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
   },
   {
     name: 'recommend_book',
-    description: 'Pokazuje użytkownikowi kartę książki z katalogu PULSE z uzasadnieniem „dlaczego teraz”.',
+    description: 'Pokazuje kartę książki z katalogu PULSE (tylko klucz z katalogu; nie wolno polecać pozycji już na półce ani odrzuconych). „why” to konkretne uzasadnienie oparte na stylu, ocenach i przeczytanych książkach osoby — bez obietnic poprawy warsztatu.',
     strict: true,
     input_schema: {
       type: 'object', additionalProperties: false, required: ['catalog_key', 'why'],
       properties: { catalog_key: { type: 'string' }, why: { type: 'string' } },
+    },
+  },
+  {
+    name: 'shift_book_deadlines',
+    description: 'Tworzy propozycję przesunięcia orientacyjnych terminów czytania książek w trakcie (choroba, brak czasu, zmęczenie). Osoba ją zatwierdza; nic nie zmienia się samo.',
+    strict: true,
+    input_schema: {
+      type: 'object', additionalProperties: false, required: ['days', 'reason'],
+      properties: { days: { type: 'integer', description: 'O ile dni przesunąć (3–60)' }, reason: { type: 'string', enum: ['sick', 'busy', 'tired'] } },
     },
   },
 ];
@@ -129,7 +140,8 @@ mentorRoutes.post('/chat', async (c) => {
   const now = Date.now();
   const tz = snap.profile?.timezone ?? 'Europe/Warsaw';
   const z0 = zoned(now, tz);
-  const contextText = buildMentorContext(snap, { today: z0.date, nowMin: z0.minutes, nowMs: now });
+  const clk = { today: z0.date, nowMin: z0.minutes, nowMs: now };
+  const contextText = buildMentorContext(snap, clk);
 
   const history = (await c.env.DB.prepare('SELECT role, content FROM mentor_messages WHERE user_id = ? AND deleted_at IS NULL ORDER BY at DESC LIMIT 16').bind(user.id).all<{ role: 'user' | 'assistant'; content: string }>()).results.reverse();
   const messages: Anthropic.Beta.BetaMessageParam[] = [];
@@ -181,9 +193,17 @@ mentorRoutes.post('/chat', async (c) => {
           if (ok) cards.push({ type: 'lesson', id: input.lesson_key as string, why: String(input.why ?? '') });
           results.push({ type: 'tool_result', tool_use_id: u.id, content: ok ? 'Karta lekcji pokazana.' : 'Nie ma takiej lekcji w katalogu.', is_error: !ok });
         } else if (u.name === 'recommend_book') {
-          const ok = typeof input.catalog_key === 'string' && !!BOOK_BY_KEY[input.catalog_key];
-          if (ok) cards.push({ type: 'book', id: input.catalog_key as string, why: String(input.why ?? '') });
-          results.push({ type: 'tool_result', tool_use_id: u.id, content: ok ? 'Karta książki pokazana.' : 'Nie ma takiej książki w katalogu.', is_error: !ok });
+          const cat = typeof input.catalog_key === 'string' ? BOOK_BY_KEY[input.catalog_key] : undefined;
+          const own = cat ? ownedRow(snap, cat) : undefined;
+          const ok = !!cat && !cat.retired && !own && !cards.some((c) => c.type === 'book' && c.id === cat.key);
+          if (ok) cards.push({ type: 'book', id: cat.key, why: String(input.why ?? '') });
+          results.push({ type: 'tool_result', tool_use_id: u.id, content: ok ? 'Karta książki pokazana.' : !cat || cat.retired ? 'Nie ma takiej książki w katalogu.' : 'Ta książka jest już na półce użytkownika (lub odrzucona) — wybierz inną.', is_error: !ok });
+        } else if (u.name === 'shift_book_deadlines') {
+          const days = Math.min(60, Math.max(3, Math.round(Number(input.days) || 14)));
+          const reason = input.reason === 'sick' || input.reason === 'tired' ? input.reason : 'busy';
+          const proposal = deadlineShiftProposal(snap, clk, { days, reason });
+          if (proposal) { proposals.push(proposal); cards.push({ type: 'proposal', id: proposal.id, title: proposal.title }); }
+          results.push({ type: 'tool_result', tool_use_id: u.id, content: proposal ? `Propozycja przesunięcia terminów pokazana do zatwierdzenia (${proposal.changes.length}).` : 'Brak książek z terminem do przesunięcia.', is_error: !proposal });
         } else if (u.name === 'propose_plan_changes') {
           const p = z.object({ title: z.string(), rationale: z.string(), changes: z.array(mentorChangeSchema) }).safeParse(input);
           if (!p.success) { results.push({ type: 'tool_result', tool_use_id: u.id, content: 'Niepoprawne dane propozycji.', is_error: true }); continue; }

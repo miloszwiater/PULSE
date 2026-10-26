@@ -106,7 +106,7 @@ test('data written by the previous version (v2 rows) survives the update', async
   await page.goto('/projekty');
   await expect(page.locator('.crate__title', { hasText: 'Stary projekt' })).toBeVisible();
   await page.goto('/nauka/ksiazki');
-  await expect(page.locator('.block', { hasText: 'W trakcie czytania' })).toContainText('Writing Better Lyrics');
+  await expect(page.locator('.block', { hasText: 'Czytam' })).toContainText('Writing Better Lyrics');
   const { rows } = await pull(page.request);
   expect(rows.projects.find((p) => p.id === 'pj_v2')!.kind).toBe('single');
   expect(rows.sessions.find((s) => s.id === 'se_v2')!.outcome).toBe('demo');
@@ -134,10 +134,91 @@ test('data persists after a fresh install: lesson progress, book, project with s
   await page.goto('/nauka/theory');
   await expect(page.locator('.pathstate__count')).toContainText('1');
   await page.goto('/nauka/ksiazki');
-  await expect(page.locator('.block', { hasText: 'W trakcie czytania' })).toBeVisible();
+  await page.getByRole('tab', { name: /^Półka/ }).click();
+  await expect(page.locator('.block', { hasText: 'Czytam' })).toBeVisible();
   await page.goto('/projekty');
   await page.locator('.crate__title', { hasText: 'Nocny przystanek' }).click();
   await expect(page.locator('.track')).toContainText('2 wersy');
+});
+
+test('library: search, statuses, feedback after finishing, next book, no duplicates, rejection stays', async ({ page }) => {
+  await newUser(page);
+  await page.goto('/nauka/ksiazki');
+  // Catalog: at least 100 titles, searchable without Polish diacritics.
+  await page.getByRole('tab', { name: 'Katalog' }).click();
+  await expect(page.getByText(/z 1\d\d pozycji/)).toBeVisible();
+  await page.getByLabel('Szukaj w katalogu').fill('lesmian');
+  await expect(page.locator('.shelf__title')).toHaveText(['Napój cienisty']);
+  await page.getByLabel('Szukaj w katalogu').fill('');
+  await page.getByLabel('Szukaj w katalogu').fill('pani dalloway');
+  await page.locator('.shelf__item').first().click();
+  // Edition facts are honest: existence confirmed, not availability.
+  await expect(page.locator('.sheet')).toContainText('jest polskie wydanie');
+  await expect(page.locator('.sheet')).toContainText('nie aktualną dostępność');
+  await page.getByRole('button', { name: 'Chcę przeczytać' }).click();
+  await expect(page.locator('.sheet__title')).toContainText('Pani Dalloway');
+  // Status flow: Czytam → deadline is suggested → Ukończona asks three optional questions.
+  await page.getByRole('button', { name: 'Czytam', exact: true }).click();
+  await expect(page.locator('input[type=date]')).not.toHaveValue('');
+  await page.getByRole('button', { name: 'Ukończona', exact: true }).click();
+  await expect(page.locator('.sheet', { hasText: 'Trzy krótkie pytania' })).toBeVisible();
+  await page.getByRole('button', { name: '5 · bardzo' }).click();
+  await page.getByRole('button', { name: 'W części' }).click();
+  await page.getByRole('button', { name: 'Raczej coś innego' }).click();
+  await page.getByRole('button', { name: 'Zapisz i dalej' }).click();
+  // The next recommendation follows the answers: a deliberate change of direction.
+  const next = page.locator('.callout--violet', { hasText: 'Co dalej?' });
+  await expect(next).toContainText('celowo coś innego');
+  await page.waitForTimeout(1500);
+  let { rows } = await pull(page.request);
+  const dalloway = rows.books.find((b) => b.catalog_key === 'woolf-dalloway')!;
+  expect(dalloway).toMatchObject({ status: 'read', rating: 5, clarity: 'partly', direction: 'different' });
+  expect(dalloway.finished_at).toBeTruthy();
+  await page.getByRole('button', { name: 'Zamknij' }).first().click();
+  // A custom entry that duplicates a shelf book is not added twice.
+  await page.getByRole('button', { name: 'Własna' }).click();
+  await page.locator('.sheet input').first().fill('pani dalloway');
+  await expect(page.locator('.sheet')).toContainText('już jest na półce');
+  await page.getByRole('button', { name: 'Zamknij' }).first().click();
+  // "Nie dla mnie" rejects a book for good: it never comes back as a recommendation.
+  await page.getByRole('tab', { name: 'Polecane' }).click();
+  const first = (await page.locator('.shelf__title').first().textContent())!;
+  await page.locator('.shelf__item').first().click();
+  await page.getByRole('button', { name: 'Nie dla mnie' }).click();
+  await page.reload();
+  await page.getByRole('tab', { name: 'Polecane' }).click();
+  await expect(page.locator('.shelf__title', { hasText: first })).toHaveCount(0);
+  await page.getByRole('tab', { name: /^Półka/ }).click();
+  await expect(page.locator('.block', { hasText: 'Odrzucone' })).toContainText(first);
+  await expect(page.locator('.block', { hasText: 'Ukończone' })).toContainText('Pani Dalloway');
+  ({ rows } = await pull(page.request));
+  expect(rows.books.filter((b) => b.catalog_key === 'woolf-dalloway')).toHaveLength(1);
+});
+
+test('library: skipping the questions finishes the book; a deadline moves only after "Zastosuj"', async ({ page }) => {
+  await newUser(page);
+  const now = Date.now();
+  const due = new Date(now + 3 * 86400e3).toISOString().slice(0, 10);
+  await push(page.request, [{ op_id: 'op_book_r', entity: 'books', action: 'put', id: 'bk_r', ts: now, data: { id: 'bk_r', updated_at: now, title: 'Obcy', author: 'Albert Camus', catalog_key: 'camus-obcy', status: 'reading', due_date: due } }]);
+  await page.reload();
+  await page.goto('/towarzysz');
+  await page.locator('.composer__input').fill('Przesuń termin książki o tydzień');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.sheet__title')).toContainText('Przesunąć terminy czytania');
+  let { rows } = await pull(page.request);
+  expect(rows.books.find((b) => b.id === 'bk_r')!.due_date).toBe(due); // a proposal changes nothing by itself
+  await page.getByRole('button', { name: 'Zastosuj' }).click();
+  await page.waitForTimeout(1500);
+  ({ rows } = await pull(page.request));
+  const moved = rows.books.find((b) => b.id === 'bk_r')!.due_date as string;
+  expect(moved > due).toBe(true);
+  await page.goto('/nauka/ksiazki');
+  await page.locator('.shelf__item', { hasText: 'Obcy' }).click();
+  await page.getByRole('button', { name: 'Ukończona', exact: true }).click();
+  await page.getByRole('button', { name: 'Pomiń pytania' }).click();
+  await page.waitForTimeout(1500);
+  ({ rows } = await pull(page.request));
+  expect(rows.books.find((b) => b.id === 'bk_r')).toMatchObject({ status: 'read', rating: null });
 });
 
 test('companion without AI: 12-hour shift tomorrow becomes a proposal, applied only on approval', async ({ page }) => {

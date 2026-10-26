@@ -4,6 +4,7 @@ import { weekStats } from '../../shared/domain/metrics';
 import { insights } from '../../shared/domain/insights';
 import { detectConflicts, resolveConflicts } from '../../shared/domain/planner';
 import { activity, returnState } from '../../shared/domain/workflow';
+import { bookNudges } from '../../shared/domain/library';
 import { addDays, durationLabel, hhmm, weekStart } from '../../shared/time';
 import type { Proposal } from '../../shared/schema';
 import { useStore } from '../data/store';
@@ -37,6 +38,7 @@ export function TodayScreen() {
   const conflicts = useMemo(() => detectConflicts(snap, clock, 7), [snap, clock]);
   const top = useMemo(() => insights(snap, clock.today)[0], [snap, clock.today]);
   const ret = useMemo(() => returnState(snap, clock.today), [snap, clock.today]);
+  const bookNudge = useMemo(() => bookNudges(snap, clock.today, clock.nowMs).find((n) => n.kind === 'overdue'), [snap, clock.today, clock.nowMs]);
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [message, setMessage] = useState('');
   const scene = useScene(clock.nowMin);
@@ -90,7 +92,7 @@ export function TodayScreen() {
       </div>
 
       <div className="today__body">
-        {(conflicts.length > 0 || pending.length > 0 || needsSetup) && (
+        {(conflicts.length > 0 || pending.length > 0 || needsSetup || bookNudge) && (
           <div className="notice-list">
             {needsSetup && (
               <button className="notice notice--violet" onClick={() => navigate('/plan?setup=1')}>
@@ -103,6 +105,13 @@ export function TodayScreen() {
               <button className="notice" onClick={() => setProposal(resolveConflicts(snap, clock, conflicts))}>
                 <Icon name="info" size={20} />
                 <span><strong>{conflicts.length} {plural(conflicts.length, 'blok nie pasuje', 'bloki nie pasują', 'bloków nie pasuje')} do grafiku.</strong> {conflicts[0].reason}</span>
+                <Icon name="chevron" size={18} />
+              </button>
+            )}
+            {bookNudge && (
+              <button className="notice" onClick={() => navigate('/nauka/ksiazki')}>
+                <Icon name="book" size={20} />
+                <span>{bookNudge.text}</span>
                 <Icon name="chevron" size={18} />
               </button>
             )}

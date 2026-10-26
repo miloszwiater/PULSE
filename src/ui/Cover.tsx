@@ -61,7 +61,7 @@ function BookCoverImpl({ title, author, width = 64 }: { title: string; author: s
       <rect width="5" height="93" fill="#000" opacity="0.28" />
       <rect x="5" width="1" height="93" fill="#fff" opacity="0.08" />
       {words.map((w, i) => (
-        <text key={i} x="10" y={18 + i * 11} fontSize={w.length > 9 ? 7 : 9} fontWeight="700" fill={fg} fontFamily="Unbounded Variable, sans-serif" letterSpacing="-0.2">{w}</text>
+        <text key={i} x="10" y={18 + i * 11} fontSize={w.length > 8 ? 6.2 : w.length > 6 ? 7.4 : 9} fontWeight="700" fill={fg} fontFamily="Unbounded Variable, sans-serif" letterSpacing="-0.2">{w}</text>
       ))}
       <rect x="10" y="68" width="22" height="1.5" fill={fg} opacity="0.6" />
       <text x="10" y="82" fontSize="5.5" fill={fg} opacity="0.85" fontFamily="Onest Variable, sans-serif">{author.split(' ').slice(-1)[0]}</text>

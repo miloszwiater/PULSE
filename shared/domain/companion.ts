@@ -5,17 +5,19 @@
  * change to the plan is a Proposal the person approves.
  */
 import { PATH_BY_KEY, type PathKey } from '../catalog/academy';
-import { careSchema, dayStateSchema, eventSchema, routineExceptionSchema, type CareCheckin, type PEvent, type Proposal } from '../schema';
+import { careSchema, dayStateSchema, eventSchema, routineExceptionSchema, type CareCheckin, type MentorMessage, type PEvent, type Proposal } from '../schema';
+import { CATEGORY_LABEL, DIFFICULTY_LABEL, PL_LABEL } from '../catalog/books';
 import { addDays, durationLabel, hhmm, plDate, weekday } from '../time';
 import { nextLessonToSuggest, pathProgress } from './academy';
 import { dayContext, RULES } from './day';
+import { BOOK_STATUS_LABEL, deadlineShiftProposal, hoursLabel, readingHours, recommendBooks } from './library';
 import { closeStaleProposal, detectConflicts, generateMonthPlan, generateWeekPlan, resolveConflicts } from './planner';
 import { alive, newId, type Clock, type Snapshot } from './snapshot';
 import { returnState } from './workflow';
 
 export type Intent =
   | 'sick' | 'work_change' | 'move_music' | 'low_energy' | 'inspired' | 'learn'
-  | 'return' | 'day_free' | 'plan_week' | 'plan_month' | 'thanks' | 'unknown';
+  | 'return' | 'day_free' | 'plan_week' | 'plan_month' | 'book' | 'book_shift' | 'thanks' | 'unknown';
 
 /**
  * Serializable action shown as a button under the reply (stored in
@@ -34,6 +36,10 @@ export interface CompanionReply {
   proposal: Proposal | null;
   /** Rows to commit together with the proposal when "apply" is chosen (e.g. the care signal it depends on). */
   actions: CompanionAction[];
+  /** Cards shown under the reply (catalog books). */
+  cards?: MentorMessage['cards'];
+  /** Leave this message to the AI when it is available: the local answer is only the fallback. */
+  defer?: boolean;
 }
 
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
@@ -97,11 +103,14 @@ export function parseDays(text: string): number | null {
 export function detectIntent(text: string): Intent {
   const t = norm(text);
   if (/chor(y|a|uj|oba)|gor[ąa]cz|przezi[ęe]bi|gryp|infekc|zatru|covid|anginy?\b|boli mnie gard/.test(t)) return 'sick';
+  // Reading deadlines are asked about before work: "przesuń termin książki, bo mam dużo w pracy" is about the book.
+  if (/ksi[ąa][żz]k|czytan|lektur/.test(t) && /termin|przesu[ńn]|prze[łl][óo][żz]|nie zd[aą][żz]|brak czasu|nie mam czasu/.test(t)) return 'book_shift';
   if (/(pracuj|w pracy|zmian[aęy]|dy[żz]ur|nadgodzin|grafik)/.test(t) && !/nie pracuj/.test(t)) return 'work_change';
   if (/(mam|bior[ęe]) (jutro |dzi[śs] |w \p{L}+ )?wolne|dzie[ńn] wolny|nie pracuj/u.test(t)) return 'day_free';
   if (/(prze[łl][óo][żz]|przesu[ńn]|przenie[śs]|odwo[łl]aj).*(muzyk|sesj|studio|nagr|plan)/.test(t)) return 'move_music';
   if (/nie mam (dzi[śs] |dzisiaj )?(energii|si[łl])|zm[ęe]czon|wyczerpan|padam|wypalon|zjechan|s[łl]abo si[ęe] czuj|bez energii|kiepski dzie[ńn]|przeci[ąa][żz]on/.test(t)) return 'low_energy';
   if (/od dawna|dawno nie|wr[óo]ci[ćc]|powr[óo]t|zacz[ąa][ćc] od nowa|zastoj|przerw[aęy] od muzyki/.test(t)) return 'return';
+  if (/ksi[ąa][żz]k|lektur|czyta[ćc]|do czytania|(skończy|przeczyta|ukończy)[łl]\w* /.test(t)) return 'book';
   if (/(pouczy|nauczy|uczy[ćc]|nauk[aęi]|lekcj|poćwicz|pocwicz|podszkoli)/.test(t)) return 'learn';
   if (/\bwen[aęy]?\b|chc[ęe] (tworzy|nagrywa|pisa|robi[ćc] muzyk)|natchn|mam flow|mam pomys[łl]|mam ochot[ęe] (na muzyk|tworzy|nagrywa)/.test(t)) return 'inspired';
   if (/plan.*miesi[ąa]c|miesi[ąa]c.*plan|zaplanuj miesi/.test(t)) return 'plan_month';
@@ -162,7 +171,9 @@ export function understand(text: string, snap: Snapshot, clock: Clock, opts: { a
         voice ? 'Oszczędzaj głos — śpiewanie poczeka.' : '',
         'Nie oceniam objawów. Jeśli jest gorzej albo stan się przedłuża, skontaktuj się z lekarzem.',
       ].filter(Boolean);
-      const proposal = bundle(fix, [{ entity: 'care', before: null, after: care as unknown as Record<string, unknown>, label: `Choroba: ${plDate(from)}${days > 1 ? ` – ${plDate(addDays(from, days - 1))}` : ''}` }],
+      const shift = deadlineShiftProposal(snap, clock, { days: days + 3, reason: 'sick' });
+      if (shift) lines.splice(2, 0, `Terminy czytania (${shift.changes.length}) też mogą poczekać — dołożyłem ich przesunięcie do tej samej propozycji.`);
+      const proposal = bundle(fix, [{ entity: 'care', before: null, after: care as unknown as Record<string, unknown>, label: `Choroba: ${plDate(from)}${days > 1 ? ` – ${plDate(addDays(from, days - 1))}` : ''}` }, ...(shift?.changes ?? [])],
         'Choroba — plan bez muzyki', `Zgłoszona choroba${days > 1 ? ` na ${days} dni` : ''}.`, now);
       return reply({ text: lines.join(' '), proposal, actions: [] });
     }
@@ -305,6 +316,39 @@ export function understand(text: string, snap: Snapshot, clock: Clock, opts: { a
     case 'plan_month': {
       const m = generateMonthPlan(snap, clock);
       return reply({ text: m.proposal ? m.proposal.rationale : 'Do końca miesiąca nie ma czego dokładać — plan i grafik się zgadzają.', proposal: m.proposal, actions: [] });
+    }
+
+    case 'book_shift': {
+      const days = parseDays(text) ?? 14;
+      const proposal = deadlineShiftProposal(snap, clock, { days, reason: 'busy' });
+      return reply({
+        text: proposal
+          ? `Terminy czytania to tylko orientacja. Proponuję przesunąć ${proposal.changes.length === 1 ? 'jeden' : proposal.changes.length} o ${days} ${days === 1 ? 'dzień' : 'dni'} — nic się nie zmieni, dopóki nie zatwierdzisz.`
+          : 'Nie ma teraz książki z bliskim terminem do przesunięcia. Termin każdej książki można zmienić w Bibliotece.',
+        proposal, actions: proposal ? [] : [{ id: 'open:/nauka/ksiazki', label: 'Otwórz Bibliotekę' }],
+      });
+    }
+
+    case 'book': {
+      const t = norm(text);
+      if (/(skończy|przeczyta|ukończy)[łl]/.test(t)) {
+        const reading = alive(snap.books).filter((b) => b.status === 'reading');
+        return reply({
+          text: `${reading.length === 1 ? `Oznacz „${reading[0].title}” jako ukończoną` : 'Oznacz książkę jako ukończoną'} na półce — zapytam o trzy rzeczy (opcjonalnie): jak bardzo się podobała, czy była zrozumiała i czy iść dalej w podobnym kierunku. Na tej podstawie zaproponuję następną.`,
+          proposal: null, actions: [{ id: 'open:/nauka/ksiazki', label: 'Otwórz półkę' }],
+        });
+      }
+      // With AI available the question goes to the literary advisor, which sees the whole shelf and profile.
+      if (opts.aiAvailable) return reply({ text: '', proposal: null, actions: [], defer: true });
+      const recs = recommendBooks(snap, { limit: 2, light: /l[eż]k|prost|krótk|latwo|łatwo/.test(t) });
+      if (!recs.length) return reply({ text: 'Cały katalog jest już na Twojej półce.', proposal: null, actions: [{ id: 'open:/nauka/ksiazki', label: 'Otwórz półkę' }] });
+      const lines = recs.map((r) => `„${r.book.title}” — ${r.book.author} (${CATEGORY_LABEL[r.book.category].toLowerCase()}, ${DIFFICULTY_LABEL[r.book.difficulty]}, ${hoursLabel(readingHours({ pages: r.book.pages, catalog_key: r.book.key }))}; ${PL_LABEL[r.book.pl]}).`);
+      const reading = alive(snap.books).filter((b) => b.status === 'reading').length;
+      return reply({
+        text: `Z katalogu, według tego, co rozwijasz i co już oceniono:\n- ${lines.join('\n- ')}\n${reading >= 2 ? `Masz już ${BOOK_STATUS_LABEL.reading.toLowerCase()} ${reading} pozycje — nowa może poczekać.` : 'Lektura niczego nie obiecuje — to materiał do czerpania.'}`,
+        proposal: null, actions: [{ id: 'open:/nauka/ksiazki', label: 'Otwórz Bibliotekę' }],
+        cards: recs.map((r) => ({ type: 'book' as const, id: r.book.key, why: r.why })),
+      });
     }
 
     case 'thanks':

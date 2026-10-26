@@ -5,10 +5,9 @@ import { dayContext } from '../shared/domain/day';
 import { autoCoverage } from '../shared/domain/sessions';
 import { breaks, returnState } from '../shared/domain/workflow';
 import { misses } from '../shared/domain/insights';
-import { completeLessonRow, openLessonRows, pathProgress, recommendBooks } from '../shared/domain/academy';
+import { completeLessonRow, openLessonRows, pathProgress } from '../shared/domain/academy';
 import { PATHS, LESSON_BY_KEY } from '../shared/catalog/academy';
 import { SOURCE_BY_KEY } from '../shared/catalog/sources';
-import { BOOKS } from '../shared/catalog/books';
 import type { PEvent } from '../shared/schema';
 import { addDays } from '../shared/time';
 import { care, clock, ev, MONDAY, routine, session, snap } from './fixtures';
@@ -175,13 +174,5 @@ describe('academy', () => {
     expect(pathProgress(s, 'vocal').done).toBe(1);
     expect(pathProgress(s, 'vocal').next?.key).toBe('vocal-warmup');
     expect(LESSON_BY_KEY['vocal-warmup'].path).toBe('vocal');
-  });
-
-  it('book recommendations follow active paths and skip retired business titles', () => {
-    const s = snap({ learning: openLessonRows(snap(), 'vocal-breath', 1) });
-    const r = recommendBooks(s);
-    expect(r[0].book.paths).toContain('vocal');
-    expect(r.some((x) => x.book.retired)).toBe(false);
-    expect(BOOKS.filter((b) => b.verified).length).toBeGreaterThanOrEqual(6);
   });
 });

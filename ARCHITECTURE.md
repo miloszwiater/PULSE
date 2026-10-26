@@ -32,7 +32,7 @@ Każda tabela użytkownika ma klucz `(user_id, id)`, `updated_at` (LWW), `delete
 | `projects` | utwory: etapy, notatki, link zewnętrzny, data premiery |
 | `goals` | cele z miarą automatyczną lub ręczną |
 | `milestones` | Roadmapa 365 (szablon + własne), dowody liczone z danych |
-| `books` | biblioteka ze statusami i terminem orientacyjnym |
+| `books` | półka: statusy (suggested/planned/bought/reading/read/paused/dropped), termin orientacyjny, `started_at`/`finished_at`, opcjonalne `rating`/`clarity`/`direction` (migracja `0006_library.sql`, addytywna) |
 | `promo_tasks` | zadania Promotion Academy i planu premiery |
 | `care` | sygnały samopoczucia (choroba z zakresem dat) |
 | `mentor_messages` | rozmowa z mentorem + karty (ćwiczenie/książka/propozycja) |
@@ -68,6 +68,7 @@ Najpierw lokalny silnik intencji (polskie wyrażenia dat, godzin, dni) → odpow
 
 ## Mentor AI (`worker/mentor.ts`)
 - System prompt (stały, cache'owany) + katalog ćwiczeń i książek; kontekst danych budowany per wiadomość przez `shared/domain/mentorContext.ts` (fakty, nie wnioski).
+- Książki: katalog w `shared/catalog/library/*` (115 pozycji, status wydania polskiego, flaga `verified`), logika w `shared/domain/library.ts` (statusy, rozpoznawanie duplikatów, szacowanie czasu i terminu, gusty z ocen, rekomendacje z różnicowaniem, następna po ukończonej, wyszukiwarka, propozycje przesunięcia terminów i bloków czytania, opcjonalna refleksja). Worker: narzędzia `recommend_book` (odrzuca pozycje już na półce) i `shift_book_deadlines`; stan półki i ocen w kontekście, katalog w cache'owanym prompcie.
 - Narzędzia: `propose_plan_changes` (walidowane: tylko istniejące wydarzenia rozwoju, nie rusza pracy/relacji, sprawdza kolizje i pojemność), `recommend_exercise`, `recommend_book`. Wynik: wiadomość + karty + propozycje `pending` do akceptacji.
 - Idempotencja po `message_id`, limit 40 wiadomości/h na użytkownika, fallback serwerowy przy odmowie, wysiłek `low` (koszt). Brak klucza → `503 not_configured`, UI pokazuje uczciwy stan.
 - Koszt orientacyjny: kontekst ~4–6 tys. tokenów + odpowiedź ~0,5–1 tys.; przy cenniku Opus 5.5 ($4/$20 za 1M) ≈ 2–4 centy za wiadomość; system prompt z cache.

@@ -7,6 +7,8 @@ import { navigate } from '../../app/router';
 import { Button, Empty, ScreenHeader } from '../../ui/kit';
 import { Icon, type IconName } from '../../ui/Icon';
 import { SOURCE_BY_KEY } from '../../../shared/catalog/sources';
+import { BOOKS } from '../../../shared/catalog/books';
+import { ownedRow } from '../../../shared/domain/library';
 import { useEffect, useState } from 'react';
 import { toast } from '../../ui/toast';
 
@@ -67,8 +69,8 @@ export function AcademyScreen() {
         <button className="pathrow pathrow--books" onClick={() => navigate('/nauka/ksiazki')}>
           <span className="pathrow__glyph" aria-hidden="true"><Icon name="book" size={20} /></span>
           <span className="pathrow__text">
-            <span className="pathrow__title">Książki</span>
-            <span className="pathrow__meta">{books ? `${books} na liście${reading ? `, ${reading} w trakcie` : ''}` : 'Prawdziwe tytuły dobrane do ścieżek'}</span>
+            <span className="pathrow__title">Biblioteka</span>
+            <span className="pathrow__meta">{books ? `${books} na półce${reading ? `, ${reading} w trakcie` : ''} · ` : ''}{BOOKS.filter((b) => !b.retired).length} książek o obrazie, języku i wrażliwości</span>
           </span>
           <Icon name="chevron" size={18} />
         </button>
@@ -82,6 +84,7 @@ export function PathScreen({ pathKey }: { pathKey: string }) {
   const path = PATH_BY_KEY[pathKey as PathKey];
   if (!path) return <div className="screen"><ScreenHeader title="Nauka" onBack /><Empty title="Nie ma takiej ścieżki." /></div>;
   const p = pathProgress(snap, path.key);
+  const related = BOOKS.filter((b) => !b.retired && b.paths.includes(path.key)).slice(0, 4);
   return (
     <div className="screen learn" style={toneVar(path.tone)}>
       <ScreenHeader title={path.title} onBack={() => navigate('/nauka')} />
@@ -114,6 +117,23 @@ export function PathScreen({ pathKey }: { pathKey: string }) {
           );
         })}
       </ol>
+      {related.length > 0 && (
+        <section className="block" aria-labelledby="rel-h">
+          <h2 className="block__title" id="rel-h">Z biblioteki do tej ścieżki</h2>
+          <ul className="shelf">
+            {related.map((b) => (
+              <li key={b.key}>
+                <button className="shelf__item" onClick={() => navigate(`/nauka/ksiazki?b=${b.key}`)}>
+                  <span className="shelf__text">
+                    <span className="shelf__title">{b.title}</span>
+                    <span className="shelf__by">{b.author}{ownedRow(snap, b) ? ' · na półce' : ''}</span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

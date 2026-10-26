@@ -436,3 +436,21 @@ html[data-nav='up']::view-transition-new(root) { animation-name: vt-fade-in; }
   .finished__mark { animation: none; }
 }
 .project__kind { margin-top: var(--s-5); }
+
+/* Library of artistic development */
+.books.screen { display: grid; gap: var(--s-4); align-content: start; }
+.books.screen > .screen-head { margin-bottom: 0; }
+.books .learn__desc { margin: 0; }
+.books .notice { width: 100%; }
+.searchbox { display: flex; align-items: center; gap: var(--s-2); padding: 0 var(--s-3); border-radius: var(--r-md); background: var(--ink-1); border: 1px solid var(--line); color: var(--text-3); }
+.searchbox .input { border: 0; background: transparent; flex: 1; min-width: 0; }
+.searchbox .input:focus { background: transparent; }
+.chipscroll { display: flex; gap: var(--s-2); overflow-x: auto; margin: 0 calc(var(--s-5) * -1); padding: 2px var(--s-5); scrollbar-width: none; overscroll-behavior-x: contain; }
+.chipscroll::-webkit-scrollbar { display: none; }
+.chipscroll > * { flex: none; }
+.facts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.facts > p { flex-basis: 100%; margin: 0; }
+.reflect { border: 1px solid var(--line); border-radius: var(--r-md); padding: var(--s-3) var(--s-4); background: var(--ink-1); }
+.reflect > summary { cursor: pointer; font-weight: 600; font-size: var(--fs-sm); }
+.reflect p { margin: var(--s-2) 0 0; }
+.books .block__title .dim { font-weight: 500; margin-left: 4px; }

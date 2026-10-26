@@ -28,5 +28,7 @@ PULSE to mobilna PWA (iPhone), która pomaga utrzymać muzykę jako regularną c
 - Żadnych sztucznych zadań twórczych („napisz 8 wersów”), żadnych wymaganych formularzy po sesji, żadnych ocen muzyki. Teoria w Akademii musi być poprawna; źródło niesprawdzone oznacz `verified: false`.
 - Towarzysz: lokalny silnik (`shared/domain/companion.ts`) najpierw; AI tylko przez serwer. Teksty utworów nigdy nie trafiają do kontekstu AI.
 - `node scripts/reset-planning.mjs --user <id> [--remote] [--apply]` — jednorazowy reset przestarzałych danych planowania jednego użytkownika (najpierw eksport bazy; domyślnie próba bez zmian).
+- `node scripts/qa-library.mjs <dir>` — zrzuty Biblioteki (polecane, arkusz książki, półka, katalog) i kontrola przepełnienia poziomego.
+- Biblioteka: nowa pozycja w `shared/catalog/library/*` tylko po sprawdzeniu autora, tytułu i wydania polskiego w źródle; czego nie potwierdzono, to `v: '…opis braku…'` i `pl: 'unconfirmed'|'none'|'unchecked'`. Żadnych zadań pisarskich w opisach i refleksjach (pilnuje `tests/library.test.ts`). Stare klucze katalogu nie znikają (zapisane książki wskazują na `catalog_key`).
 - `node scripts/qa-v3.mjs <dir>` — przejście głównych przepływów ze zrzutami (po `shots.mjs` + `onboard.mjs`).
 - Model AI domyślnie `claude-opus-5-5` (zmienna `AI_MODEL`); nie wpisuj identyfikatorów modeli do commitów.

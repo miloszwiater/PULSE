@@ -185,7 +185,7 @@
 .daynotes li.is-planned .daynotes__day { color: var(--violet-hi); }
 .daynotes__day { font-weight: 600; color: var(--text-3); }
 .history-row { align-items: center; }
-.book-flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.book-flow { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; }
 .book-flow__step { min-height: 40px; border-radius: var(--r-xs); background: var(--ink-2); font-size: var(--fs-xs); font-weight: 600; color: var(--text-3); padding: 0 4px; }
 .book-flow__step.is-past { color: var(--text-2); background: color-mix(in srgb, var(--violet) 14%, var(--ink-2)); }
 .book-flow__step.is-on { background: var(--violet); color: #fff; }

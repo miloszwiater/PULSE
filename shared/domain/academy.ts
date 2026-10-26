@@ -1,5 +1,4 @@
 import { LESSON_BY_KEY, PATHS, PATH_BY_KEY, type Lesson, type LearningPath, type PathKey } from '../catalog/academy';
-import { BOOKS, type CatalogBook } from '../catalog/books';
 import { learningSchema, type Learning } from '../schema';
 import { alive, type Snapshot } from './snapshot';
 
@@ -108,45 +107,4 @@ export function completeLessonRow(snap: Snapshot, key: string, done: boolean, no
     ...(cur ?? {}), id: key, kind: 'lesson', path_key: l.path, status: done ? 'done' : 'active',
     started_at: cur?.started_at ?? now, done_at: done ? now : null, last_opened_at: now, updated_at: now, deleted_at: null,
   });
-}
-
-/* ---------- books ---------- */
-
-export interface BookRecommendation { book: CatalogBook; why: string }
-
-/**
- * Real titles matched to what the person is actually learning. Books already
- * in the library are skipped; voice and theory first when those paths are active.
- */
-export function recommendBooks(snap: Snapshot, limit = 4): BookRecommendation[] {
-  const owned = new Set(alive(snap.books).map((b) => b.catalog_key).filter(Boolean));
-  const progress = allProgress(snap);
-  const active = new Set(progress.filter((p) => p.state === 'active').map((p) => p.path.key));
-  const done = new Set(progress.filter((p) => p.state === 'done').map((p) => p.path.key));
-  const scored: (BookRecommendation & { score: number })[] = [];
-  for (const b of BOOKS) {
-    if (b.retired || owned.has(b.key)) continue;
-    let score = 0;
-    let why = b.why;
-    const hit = b.paths.find((p) => active.has(p));
-    const after = b.paths.find((p) => done.has(p));
-    if (hit) { score += 3; why = `Pogłębia ścieżkę „${PATH_BY_KEY[hit].title}”, którą masz w toku. ${b.why}`; }
-    else if (after) { score += 2; why = `Kontynuacja ukończonej ścieżki „${PATH_BY_KEY[after].title}”. ${b.why}`; }
-    if (b.verified) score += 0.5;
-    if (b.kind === 'voice' || b.kind === 'theory') score += 0.3;
-    if (b.pl) score += 0.2;
-    scored.push({ book: b, why, score });
-  }
-  return scored.sort((a, b) => b.score - a.score).slice(0, limit).map(({ book, why }) => ({ book, why }));
-}
-
-/** After a book is finished: the next one, preferring the same path. */
-export function nextBookAfter(snap: Snapshot, finishedKey: string | null): BookRecommendation | null {
-  const finished = finishedKey ? BOOKS.find((b) => b.key === finishedKey) : undefined;
-  const recs = recommendBooks(snap, 10);
-  if (finished) {
-    const same = recs.find((r) => r.book.paths.some((p) => finished.paths.includes(p)));
-    if (same) return { book: same.book, why: `Po „${finished.title}”: ${same.why}` };
-  }
-  return recs[0] ?? null;
 }

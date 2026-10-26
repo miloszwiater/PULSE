@@ -108,7 +108,7 @@ export function ProjectScreen({ id }: { id: string }) {
           e.target.value = '';
         }} />
         <div className="project__ident">
-          <input className="project__title" value={title} onChange={(e) => setTitle(e.target.value)} onBlur={() => title.trim() && title !== p.title && save({ title: title.trim() })} maxLength={160} aria-label="Nazwa projektu" />
+          <textarea className="project__title" rows={1} ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; } }} value={title} onChange={(e) => setTitle(e.target.value.replace(/\n/g, " "))} onBlur={() => title.trim() && title !== p.title && save({ title: title.trim() })} maxLength={160} aria-label="Nazwa projektu" />
           <div className="cluster">
             {p.cover_data && <button className="btn btn--quiet" onClick={() => save({ cover_data: '' })}>Usuń zdjęcie</button>}
             {!p.cover_data && <button className="btn btn--quiet" onClick={() => save({ tone: (p.tone + 1) % 8 })}>Inny kolor okładki</button>}

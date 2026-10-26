@@ -230,7 +230,7 @@ function ManualSheet({ open, onClose, today }: { open: boolean; onClose: () => v
       <p className="muted small">Dla sesji bez timera — np. gdy telefon został w drugim pokoju.</p>
       <div className="field-row">
         <Field label="Dzień"><input className="input" type="date" value={date} max={today} onChange={(e) => setDate(e.target.value)} /></Field>
-        <Field label="Start"><input className="input" type="time" value={start} onChange={(e) => setStart(e.target.value)} /></Field>
+        <Field label="Start"><input className="input" type="time" step={60} value={start} onChange={(e) => setStart(e.target.value)} /></Field>
       </div>
       <div className="stack">
         <span className="field__label">Ile trwała</span>

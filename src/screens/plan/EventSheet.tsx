@@ -106,8 +106,8 @@ export function EventSheet({ draft, onClose, onSaved }: { draft: EventDraft | nu
       <Field label="Nazwa"><input className="input" value={form.title} onChange={(ev) => set('title', ev.target.value)} placeholder={ex ? ex.title : KIND_LABEL[form.kind]} maxLength={160} /></Field>
       <Field label="Dzień" hint={longDate(form.date)}><input className="input" type="date" value={form.date} onChange={(ev) => ev.target.value && set('date', ev.target.value)} /></Field>
       <div className="field-row">
-        <Field label="Od"><input className="input" type="time" value={start} onChange={(ev) => setStart(ev.target.value)} /></Field>
-        <Field label="Do" hint={s != null && e != null && e > 1440 ? 'Kończy się następnego dnia.' : undefined}><input className="input" type="time" value={end} onChange={(ev) => setEnd(ev.target.value)} /></Field>
+        <Field label="Od"><input className="input" type="time" step={60} value={start} onChange={(ev) => setStart(ev.target.value)} /></Field>
+        <Field label="Do" hint={s != null && e != null && e > 1440 ? 'Kończy się następnego dnia.' : undefined}><input className="input" type="time" step={60} value={end} onChange={(ev) => setEnd(ev.target.value)} /></Field>
       </div>
 
       {form.kind === 'training' && (

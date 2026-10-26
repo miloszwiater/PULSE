@@ -168,3 +168,14 @@ export function nextFreeWindow(ctx: DayContext): Interval | null {
   if (!ctx.windows.length) return null;
   return ctx.windows.reduce((best, w) => (w.end - w.start > best.end - best.start ? w : best), ctx.windows[0]);
 }
+
+/**
+ * Visible time axis of a day (minutes from midnight). Sleep after midnight belongs to the same evening,
+ * so the axis runs past 24:00 and is never shorter than 8 h — it can't collapse or run backwards.
+ */
+export function dayAxis(wake: number, bedRaw: number, starts: number[], ends: number[]): { from: number; to: number } {
+  const bed = bedRaw <= wake ? bedRaw + 1440 : bedRaw;
+  const from = Math.max(0, Math.floor(Math.min(wake - 30, ...starts) / 60) * 60);
+  const rawTo = Math.min(1440 + 360, Math.ceil(Math.max(bed + 30, ...ends) / 60) * 60);
+  return { from, to: Math.max(rawTo, from + 8 * 60) };
+}

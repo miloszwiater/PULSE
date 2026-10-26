@@ -224,7 +224,7 @@ button.tt__deck:active .tt__svg { transform: scale(0.985); }
 .sleeve__gen { position: absolute; inset: 0; background: linear-gradient(160deg, color-mix(in srgb, var(--tone) 50%, #110f16), #110f16 78%); }
 .sleeve__gen::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.015) 0 1px, transparent 1px 3px); }
 .sleeve__grooves { position: absolute; width: 120%; aspect-ratio: 1; right: -55%; bottom: -55%; border-radius: 50%; background: repeating-radial-gradient(circle, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 5px), radial-gradient(circle, color-mix(in srgb, var(--tone) 40%, #110f16) 0 18%, #0c0b10 19%); }
-.sleeve__name { position: absolute; left: 10%; top: 9%; right: 10%; font-family: var(--font-display); font-weight: 500; font-size: clamp(1rem, 5.2vw, 1.375rem); line-height: 1.05; color: #fff; overflow-wrap: anywhere; }
+.sleeve__name { position: absolute; left: 10%; top: 9%; right: 10%; font-family: var(--font-display); font-weight: 500; font-size: clamp(1rem, 5.2vw, 1.375rem); line-height: 1.05; color: #fff; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .crate { list-style: none; margin: var(--s-2) 0 var(--s-4); padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-8) var(--s-4); }
 .crate__item { display: grid; gap: 4px; width: 100%; text-align: left; }
 .crate__art { position: relative; display: block; padding-right: 12%; isolation: isolate; }
@@ -240,7 +240,7 @@ button.tt__deck:active .tt__svg { transform: scale(0.985); }
 .project__cover { position: relative; display: grid; gap: 6px; }
 .project__cover-hint { display: inline-flex; gap: 4px; align-items: center; font-size: var(--fs-xs); color: var(--text-2); }
 .project__ident { display: grid; gap: var(--s-3); min-width: 0; }
-.project__title { width: 100%; min-width: 0; font-family: var(--font-display); font-weight: 500; font-size: var(--fs-xl); line-height: 1.1; background: none; border: 0; border-bottom: 1px solid var(--line); color: var(--text); padding: 4px 0; }
+.project__title { width: 100%; min-width: 0; font-family: var(--font-display); font-weight: 500; font-size: var(--fs-xl); line-height: 1.1; background: none; border: 0; border-bottom: 1px solid var(--line); color: var(--text); padding: 4px 0; resize: none; overflow: hidden; display: block; overflow-wrap: anywhere; }
 .project__title:focus { outline: none; border-bottom-color: var(--violet); }
 .project__kind { margin-top: var(--s-5); }
 .tracklist { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }

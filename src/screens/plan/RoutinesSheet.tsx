@@ -53,8 +53,8 @@ function RoutineEditor({ routine, onClose }: { routine: Routine; onClose: () => 
         <div className="cluster">{WD_SHORT.map((d, i) => <Chip key={d} on={r.weekdays.includes(i)} onClick={() => setR({ ...r, weekdays: r.weekdays.includes(i) ? r.weekdays.filter((x) => x !== i) : [...r.weekdays, i].sort() })}>{d}</Chip>)}</div>
       </div>
       <div className="field-row">
-        <Field label="Od"><input className="input" type="time" value={start} onChange={(ev) => setStart(ev.target.value)} /></Field>
-        <Field label="Do"><input className="input" type="time" value={end} onChange={(ev) => setEnd(ev.target.value)} /></Field>
+        <Field label="Od"><input className="input" type="time" step={60} value={start} onChange={(ev) => setStart(ev.target.value)} /></Field>
+        <Field label="Do"><input className="input" type="time" step={60} value={end} onChange={(ev) => setEnd(ev.target.value)} /></Field>
       </div>
       <div className="field-row">
         <Field label="Obowiązuje od" hint="Opcjonalnie"><input className="input" type="date" value={r.valid_from ?? ''} onChange={(ev) => setR({ ...r, valid_from: ev.target.value || null })} /></Field>

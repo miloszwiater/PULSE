@@ -95,8 +95,8 @@ export function SettingsScreen() {
       <Section title="Rytm">
         <div className="stack">
           <div className="field-row">
-            <Field label="Pobudka"><input className="input" type="time" defaultValue={hhmm(p.wake_min)} onBlur={(e) => { const v = parseHHMM(e.target.value); if (v != null) patchProfile({ wake_min: v }); }} /></Field>
-            <Field label="Sen"><input className="input" type="time" defaultValue={hhmm(p.bed_min)} onBlur={(e) => { const v = parseHHMM(e.target.value); if (v != null) patchProfile({ bed_min: v }); }} /></Field>
+            <Field label="Pobudka"><input className="input" type="time" step={60} defaultValue={hhmm(p.wake_min)} onBlur={(e) => { const v = parseHHMM(e.target.value); if (v != null) patchProfile({ wake_min: v }); }} /></Field>
+            <Field label="Sen"><input className="input" type="time" step={60} defaultValue={hhmm(p.bed_min)} onBlur={(e) => { const v = parseHHMM(e.target.value); if (v != null) patchProfile({ bed_min: v }); }} /></Field>
           </div>
           <div className="stack"><span className="field__label">Rytm docelowy — sesje w tygodniu</span>
             <div className="cluster">{[1, 2, 3, 4, 5, 6, 7].map((n) => <Chip key={n} on={p.weekly_session_target === n} onClick={() => patchProfile({ weekly_session_target: n })}>{n}</Chip>)}</div>

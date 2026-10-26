@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { COMMITMENT_KINDS, DAY_STATUSES, type DayStatus, type EventKind, type PEvent, type Proposal } from '../../../shared/schema';
-import { dayContext, type Block } from '../../../shared/domain/day';
+import { dayAxis, dayContext, type Block } from '../../../shared/domain/day';
 import { closeStaleProposal, detectConflicts, generateMonthPlan, generateWeekPlan, resolveConflicts, type DayNote } from '../../../shared/domain/planner';
 import { countsAsSession, sessionDate } from '../../../shared/domain/sessions';
 import { weekStats } from '../../../shared/domain/metrics';
@@ -174,15 +174,19 @@ function DayView({ date, onSlot, onEvent, onRoutine, onStatus }: { date: string;
   const tz = snap.profile?.timezone ?? 'Europe/Warsaw';
   const ctx = useMemo(() => dayContext(snap, date, clock), [snap, date, clock]);
   const wake = snap.profile?.wake_min ?? 420;
-  const bed = snap.profile?.bed_min ?? 1380;
+  const bedRaw = snap.profile?.bed_min ?? 1380;
+  // Sleep after midnight (e.g. 00:30) is the same evening: the axis runs on past 24:00, never backwards.
   const events = snap.events.filter((e) => e.date === date && !['cancelled', 'moved'].includes(e.status));
   const devEvents = events.filter((e) => COMMITMENT_KINDS.includes(e.kind) || e.kind === 'rest');
   const routineBlocks = ctx.blocks.filter((b) => b.routine_id);
   const lifeEvents = events.filter((e) => !COMMITMENT_KINDS.includes(e.kind) && e.kind !== 'rest');
   const sessions = snap.sessions.filter((s) => countsAsSession(s) && sessionDate(s, tz) === date);
-  const allStarts = [wake - 30, ...ctx.blocks.map((b) => b.start), ...events.map((e) => e.start_min)];
-  const from = Math.max(0, Math.floor(Math.min(...allStarts) / 60) * 60);
-  const to = Math.min(1440 + 360, Math.ceil(Math.max(bed + 30, ...ctx.blocks.map((b) => b.end), ...events.map((e) => e.end_min)) / 60) * 60);
+  const { from, to } = dayAxis(
+    wake,
+    bedRaw,
+    [...ctx.blocks.map((b) => b.start), ...events.map((e) => e.start_min), ...ctx.windows.map((w) => w.start)],
+    [...ctx.blocks.map((b) => b.end), ...events.map((e) => e.end_min), ...ctx.windows.map((w) => w.end)],
+  );
   const hours: number[] = [];
   for (let m = from; m <= to; m += 60) hours.push(m);
   type Item = { start: number; end: number; key: string; kind: string; title: string; sub: string; status?: string; onClick: () => void; variant: 'life' | 'dev' | 'routine' };

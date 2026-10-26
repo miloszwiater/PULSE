@@ -68,3 +68,8 @@ Nowa identyfikacja całej aplikacji (DESIGN.md → Wersja 4): lakierowana czerń
 2. Usunąć/odnowić token Cloudflare użyty przy wdrożeniu.
 
 Ponowne wdrożenie: `CLOUDFLARE_API_TOKEN=… npm run db:migrate:remote && CLOUDFLARE_API_TOKEN=… npm run deploy`.
+
+## Hotfix v4.1 — układ na prawdziwych danych
+- Przyczyna: oś dnia w Planie zapadała się, gdy sen był po północy (np. 00:30) → ujemna wysokość osi. Logika w `dayAxis` (`shared/domain/day.ts`, test `tests/dayAxis.test.ts`).
+- Pola czasu bez sekund (`step=60`), tytuł projektu zawija się, okładka i imię w Ty/Profilu mają limity linii, niższy hero na Start.
+- Audyt na bogatych danych i w prawdziwym WebKit: `npx tsx scripts/seed-qa.ts <dir>`, `node scripts/qa-rich.mjs <dir> webkit 390`, `node scripts/qa-safe.mjs <dir>` (symulacja safe-area).

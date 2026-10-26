@@ -34,8 +34,8 @@ export function PlanSetupSheet({ open, onClose, onPlan }: { open: boolean; onClo
         </div>
 
         <div className="field-row">
-          <Field label="Pobudka"><input className="input" type="time" defaultValue={hhmm(p.wake_min)} onBlur={(e) => { const v = parseHHMM(e.target.value); if (v != null) patchProfile({ wake_min: v }); }} /></Field>
-          <Field label="Sen"><input className="input" type="time" defaultValue={hhmm(p.bed_min)} onBlur={(e) => { const v = parseHHMM(e.target.value); if (v != null) patchProfile({ bed_min: v }); }} /></Field>
+          <Field label="Pobudka"><input className="input" type="time" step={60} defaultValue={hhmm(p.wake_min)} onBlur={(e) => { const v = parseHHMM(e.target.value); if (v != null) patchProfile({ wake_min: v }); }} /></Field>
+          <Field label="Sen"><input className="input" type="time" step={60} defaultValue={hhmm(p.bed_min)} onBlur={(e) => { const v = parseHHMM(e.target.value); if (v != null) patchProfile({ bed_min: v }); }} /></Field>
         </div>
 
         <div className="stack">

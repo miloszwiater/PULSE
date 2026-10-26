@@ -113,8 +113,8 @@ export function Onboarding() {
                   <div className="cluster">{WD_SHORT.map((d, i) => <Chip key={d} on={workDays.includes(i)} onClick={() => setWorkDays(toggle(workDays, i).sort())}>{d}</Chip>)}</div>
                 </div>
                 <div className="field-row">
-                  <Field label="Od"><input className="input" type="time" value={workStart} onChange={(e) => setWorkStart(e.target.value)} /></Field>
-                  <Field label="Do"><input className="input" type="time" value={workEnd} onChange={(e) => setWorkEnd(e.target.value)} /></Field>
+                  <Field label="Od"><input className="input" type="time" step={60} value={workStart} onChange={(e) => setWorkStart(e.target.value)} /></Field>
+                  <Field label="Do"><input className="input" type="time" step={60} value={workEnd} onChange={(e) => setWorkEnd(e.target.value)} /></Field>
                 </div>
                 <Field label="Dojazd w jedną stronę (min)">
                   <input className="input" type="number" inputMode="numeric" min={0} max={180} value={commute} onChange={(e) => setCommute(Math.max(0, Math.min(180, Number(e.target.value) || 0)))} />
@@ -128,8 +128,8 @@ export function Onboarding() {
             <h1 className="onb__title">Rytm tygodnia</h1>
             <p className="onb__lead">Rytm jest tygodniowy i jest zachętą, nie wymogiem. Codzienna muzyka jest mile widziana, ale niepotrzebna; choroba, urlop i dni wolne nigdy nie przerywają rytmu.</p>
             <div className="field-row">
-              <Field label="Pobudka"><input className="input" type="time" value={wake} onChange={(e) => setWake(e.target.value)} /></Field>
-              <Field label="Sen"><input className="input" type="time" value={bed} onChange={(e) => setBed(e.target.value)} /></Field>
+              <Field label="Pobudka"><input className="input" type="time" step={60} value={wake} onChange={(e) => setWake(e.target.value)} /></Field>
+              <Field label="Sen"><input className="input" type="time" step={60} value={bed} onChange={(e) => setBed(e.target.value)} /></Field>
             </div>
             <div className="stack">
               <span className="field__label">Sesje w tygodniu</span>

@@ -123,8 +123,8 @@ function BlockSheet({ value, onClose, blocks }: { value: { i: number | null; b: 
         {WD_SHORT.map((d, i) => <Chip key={d} on={b.weekdays.includes(i)} onClick={() => setB({ ...b, weekdays: b.weekdays.includes(i) ? b.weekdays.filter((x) => x !== i) : [...b.weekdays, i].sort() })}>{d}</Chip>)}
       </div>
       <div className="field-row">
-        <Field label="Od"><input className="input" type="time" value={hhmm(b.start_min)} onChange={(e) => { const v = parseHHMM(e.target.value); if (v != null) setB({ ...b, start_min: v }); }} /></Field>
-        <Field label="Do"><input className="input" type="time" value={hhmm(b.end_min)} onChange={(e) => { const v = parseHHMM(e.target.value); if (v != null) setB({ ...b, end_min: v }); }} /></Field>
+        <Field label="Od"><input className="input" type="time" step={60} value={hhmm(b.start_min)} onChange={(e) => { const v = parseHHMM(e.target.value); if (v != null) setB({ ...b, start_min: v }); }} /></Field>
+        <Field label="Do"><input className="input" type="time" step={60} value={hhmm(b.end_min)} onChange={(e) => { const v = parseHHMM(e.target.value); if (v != null) setB({ ...b, end_min: v }); }} /></Field>
       </div>
     </Sheet>
   );

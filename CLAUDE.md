@@ -32,5 +32,6 @@ PULSE to mobilna PWA (iPhone), która pomaga utrzymać muzykę jako regularną c
 - Design v4 (DESIGN.md): fiolet tylko dla tego, co żywe/klikalne; VU (amber) dla nauki, dni chronionych i pauzy; Bodoni Moda ≥ 20 px; nowe zdjęcia tylko po przepuszczeniu przez ten sam duotone i z licencją bez wymogu przypisania (wpisz źródło w DESIGN.md).
 - `node scripts/qa-library.mjs <dir>` — zrzuty Biblioteki (polecane, arkusz książki, półka, katalog) i kontrola przepełnienia poziomego.
 - Biblioteka: nowa pozycja w `shared/catalog/library/*` tylko po sprawdzeniu autora, tytułu i wydania polskiego w źródle; czego nie potwierdzono, to `v: '…opis braku…'` i `pl: 'unconfirmed'|'none'|'unchecked'`. Żadnych zadań pisarskich w opisach i refleksjach (pilnuje `tests/library.test.ts`). Stare klucze katalogu nie znikają (zapisane książki wskazują na `catalog_key`).
+- Audyt na bogatych danych w WebKit: `scripts/seed-qa.ts` + `scripts/qa-rich.mjs <dir> webkit <szerokość>`; `scripts/qa-safe.mjs` — safe-area. Testuj na takich danych, nie na pustym koncie.
 - `node scripts/qa-v3.mjs <dir>` — przejście głównych przepływów ze zrzutami (po `shots.mjs` + `onboard.mjs`).
 - Model AI domyślnie `claude-opus-5-5` (zmienna `AI_MODEL`); nie wpisuj identyfikatorów modeli do commitów.

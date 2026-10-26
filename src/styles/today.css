@@ -5,7 +5,7 @@
 .today__hero {
   position: relative;
   isolation: isolate;
-  min-height: min(68svh, 560px);
+  min-height: min(52svh, 440px);
   display: flex;
   flex-direction: column;
   justify-content: space-between;

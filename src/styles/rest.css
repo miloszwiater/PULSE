@@ -26,7 +26,7 @@
     #0c0b10;
   box-shadow: 0 0 0 1px var(--line-strong), 0 10px 22px -12px rgba(0, 0, 0, 0.9);
 }
-.you__name { font-size: var(--fs-2xl); }
+.you__name { font-size: var(--fs-2xl); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .you__style { color: var(--text-2); font-size: var(--fs-sm); margin-top: 2px; }
 .you__rhythm { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; align-items: start; gap: var(--s-3); width: 100%; text-align: left; padding: var(--s-5) var(--s-4); margin-bottom: var(--s-6); border-radius: var(--r-lg); background: var(--ink-1); border: 1px solid var(--line); box-shadow: var(--edge); }
 .you__fig { display: grid; gap: 4px; font-size: var(--fs-xs); color: var(--text-2); min-width: 0; }
@@ -148,7 +148,7 @@
 .profile__top { display: flex; justify-content: space-between; padding: calc(var(--safe-top) + var(--s-2)) var(--s-2) 0; }
 .profile__top .icon-btn { color: var(--text); background: rgba(9, 8, 12, 0.35); }
 .profile__id { padding: 0 var(--gutter) var(--s-8); display: grid; gap: 6px; }
-.profile__name { font-family: var(--font-display); font-weight: 500; font-size: var(--fs-2xl); line-height: 1.05; }
+.profile__name { font-family: var(--font-display); font-weight: 500; font-size: var(--fs-2xl); line-height: 1.05; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .profile__sub { color: var(--text-2); font-size: var(--fs-sm); }
 .profile__body { position: relative; padding: 0 var(--gutter); display: grid; gap: var(--s-4); }
 .card2 { background: var(--ink-1); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--edge); }

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { Session, Workflow } from '../../../shared/schema';
-import { countsAsSession, sessionDate } from '../../../shared/domain/sessions';
+import { activeSeconds, countsAsSession, isPaused, sessionDate } from '../../../shared/domain/sessions';
 import { QUICK_LENGTHS, STARTER_WORKFLOWS, workflowsSorted } from '../../../shared/domain/workflow';
 import { durationLabel, hhmm, parseHHMM, zoned } from '../../../shared/time';
 import { useStore } from '../../data/store';
@@ -10,7 +10,9 @@ import { remove, commit } from '../../data/store';
 import { navigate } from '../../app/router';
 import { Button, Chip, Field, IconButton, Row, Sheet, Toggle } from '../../ui/kit';
 import { Icon } from '../../ui/Icon';
-import { dayLabel } from '../../ui/format';
+import { dayLabel, formatTimer } from '../../ui/format';
+import { TimerDigits, Turntable } from '../../ui/Turntable';
+import { sessionProgress } from './SessionScreen';
 import { toast } from '../../ui/toast';
 
 export const TONES = 8;
@@ -41,40 +43,48 @@ export function CreateScreen() {
 
   const go = (opts: Parameters<typeof startSession>[0]) => { startSession(opts); navigate('/sesja'); };
 
+  // Time counts from the tap; the needle drop plays on the same deck before the session screen opens.
+  const start = (opts: Parameters<typeof startSession>[0]) => {
+    if (running) return;
+    startSession(opts);
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) navigate('/sesja');
+    else setTimeout(() => navigate('/sesja'), 650);
+  };
+
   return (
-    <div className="screen create3">
-      <header className="create3__head">
-        <h1 className="create3__title">Twórz</h1>
-        <p className="create3__lead">Jedno dotknięcie i czas się liczy. Bez kategorii, bez formularzy.</p>
+    <div className="screen create">
+      <header className="create__head">
+        <h1 className="create__title">Twórz</h1>
+        <p className="create__lead">Jedno dotknięcie i czas się liczy. Bez kategorii i bez formularzy — tworzysz, co chcesz.</p>
       </header>
 
-      {running ? (
-        <section className="launch">
-          <button className="launch__disc is-live" onClick={() => navigate('/sesja')} aria-label="Wróć do trwającej sesji">
-            <span className="launch__grooves" aria-hidden="true" />
-            <span className="launch__label">Wróć</span>
-          </button>
-          <p className="launch__hint">Sesja trwa — czas biegnie także przy zablokowanym telefonie.</p>
-        </section>
-      ) : (
-        <section className="launch" aria-label="Szybki start">
-          <button className="launch__disc" onClick={() => go({ minutes, focus, event: planned ?? null })} aria-label={`Zacznij sesję: ${lengthLabel(minutes)}`}>
-            <span className="launch__grooves" aria-hidden="true" />
-            <span className="launch__label">Zacznij</span>
-            <span className="launch__sub">{lengthLabel(minutes)}</span>
-          </button>
-          <div className="launch__lengths" role="radiogroup" aria-label="Długość sesji">
-            {QUICK_LENGTHS.map((m) => (
-              <button key={String(m)} role="radio" aria-checked={minutes === m} className={`len${minutes === m ? ' is-on' : ''}`} onClick={() => setMinutes(m)}>{lengthLabel(m)}</button>
-            ))}
-          </div>
-          <div className="launch__opts">
-            <Chip icon="focus" on={focus} onClick={() => setFocus(!focus)}>Tryb skupienia</Chip>
-            {planned && <span className="launch__plan">Zaliczy też plan z {hhmm(planned.start_min)}</span>}
-          </div>
-          <p className="launch__hint">Długość to tylko zamiar — sesję można skończyć wcześniej albo ciągnąć dalej.</p>
-        </section>
-      )}
+      <section className="deck" aria-label={running ? 'Trwająca sesja' : 'Szybki start'}>
+        <DeckTurntable session={running} onStart={() => start({ minutes, focus, event: planned ?? null })} startLabel={`Zacznij sesję: ${lengthLabel(minutes)}`} />
+        {running ? (
+          <>
+            <Button variant="primary" size="lg" block icon="play" onClick={() => navigate('/sesja')}>Wróć do sesji</Button>
+            <p className="deck__hint">Czas biegnie także przy zablokowanym telefonie.</p>
+          </>
+        ) : (
+          <>
+            <div className="keys" role="radiogroup" aria-label="Długość sesji">
+              {QUICK_LENGTHS.map((m) => (
+                <button key={String(m)} role="radio" aria-checked={minutes === m} className={`key${minutes === m ? ' is-on' : ''}`} onClick={() => setMinutes(m)}>
+                  <span className="key__led" aria-hidden="true" />{lengthLabel(m)}
+                </button>
+              ))}
+            </div>
+            <Button variant="primary" size="lg" block icon="play" onClick={() => start({ minutes, focus, event: planned ?? null })}>
+              {minutes == null ? 'Zacznij sesję' : `Zacznij — ${lengthLabel(minutes)}`}
+            </Button>
+            <div className="deck__opts">
+              <Chip icon="focus" on={focus} onClick={() => setFocus(!focus)}>Tryb skupienia</Chip>
+              {planned && <span className="deck__plan">Zaliczy też plan z {hhmm(planned.start_min)}</span>}
+            </div>
+            <p className="deck__hint">Długość to tylko zamiar — sesję można skończyć wcześniej albo ciągnąć dalej.</p>
+          </>
+        )}
+      </section>
 
       <section className="block" aria-labelledby="wf-h">
         <div className="block__head">
@@ -149,6 +159,19 @@ export function CreateScreen() {
       <ManualSheet open={manualOpen} onClose={() => setManualOpen(false)} today={clock.today} />
       <SessionSheet session={openSession} onClose={() => setOpenSession(null)} />
     </div>
+  );
+}
+
+/** One deck for both states, so starting a session animates the same record instead of swapping it. */
+function DeckTurntable({ session, onStart, startLabel }: { session: Session | undefined | null; onStart: () => void; startLabel: string }) {
+  const clock = useClock(1000);
+  if (!session) return <Turntable state="idle" progress={0} label="Creative Workflow" onToggle={onStart} toggleLabel={startLabel} />;
+  const secs = activeSeconds(session, clock.nowMs);
+  return (
+    <Turntable state={isPaused(session) ? 'paused' : 'playing'} progress={sessionProgress(secs, session.target_minutes)} label={session.title || 'Creative Workflow'}
+      onToggle={() => navigate('/sesja')} toggleLabel="Wróć do trwającej sesji">
+      <TimerDigits text={formatTimer(secs)} className="deck__time" />
+    </Turntable>
   );
 }
 

@@ -37,11 +37,9 @@ export function AuthScreen({ onDone }: { onDone: (u: AuthUser) => void }) {
   const canRegister = cfg?.signupOpen || cfg?.signupWithCode;
   return (
     <div className="auth">
+      <div className="auth__photo photo" aria-hidden="true"><img src="/photos/record.webp" alt="" /></div>
       <div className="auth__brand">
         <Wordmark size="lg" />
-        <svg className="auth__line" viewBox="0 0 400 60" preserveAspectRatio="none" aria-hidden="true">
-          <path pathLength={1} d="M0 34 H150 L162 40 L174 8 L188 52 L198 34 H260 L268 38 L276 24 L284 34 H400" />
-        </svg>
         <p className="auth__lead">Muzyka jako regularna część życia. Plan, który rozumie pracę i odpoczynek, sesja jednym dotknięciem i nauka we własnym tempie.</p>
       </div>
       <form className="auth__form" onSubmit={submit} noValidate>

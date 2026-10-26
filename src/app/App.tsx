@@ -133,7 +133,7 @@ function Shell() {
   return (
     <div className="shell" data-tab={tabOf(path)}>
       <main key={path} className="shell__main"><Suspense fallback={<div className="screen" aria-busy="true" />}>{screen}</Suspense></main>
-      {!fullscreen && <ActiveSessionPill />}
+      {!fullscreen && path !== '/tworz' && <ActiveSessionPill />}
       {!fullscreen && <TabBar />}
       <Toaster />
     </div>

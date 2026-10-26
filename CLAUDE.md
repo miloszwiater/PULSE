@@ -28,6 +28,8 @@ PULSE to mobilna PWA (iPhone), która pomaga utrzymać muzykę jako regularną c
 - Żadnych sztucznych zadań twórczych („napisz 8 wersów”), żadnych wymaganych formularzy po sesji, żadnych ocen muzyki. Teoria w Akademii musi być poprawna; źródło niesprawdzone oznacz `verified: false`.
 - Towarzysz: lokalny silnik (`shared/domain/companion.ts`) najpierw; AI tylko przez serwer. Teksty utworów nigdy nie trafiają do kontekstu AI.
 - `node scripts/reset-planning.mjs --user <id> [--remote] [--apply]` — jednorazowy reset przestarzałych danych planowania jednego użytkownika (najpierw eksport bazy; domyślnie próba bez zmian).
+- `node scripts/qa-v4.mjs <dir>` — audyt v4: logowanie, arkusze, 17 ekranów × 4 szerokości (320–430) z wykrywaniem poziomego przepełnienia; `node scripts/qa-session.mjs <dir>` — gramofon: start, pauza, deck w tle, zapis.
+- Design v4 (DESIGN.md): fiolet tylko dla tego, co żywe/klikalne; VU (amber) dla nauki, dni chronionych i pauzy; Bodoni Moda ≥ 20 px; nowe zdjęcia tylko po przepuszczeniu przez ten sam duotone i z licencją bez wymogu przypisania (wpisz źródło w DESIGN.md).
 - `node scripts/qa-library.mjs <dir>` — zrzuty Biblioteki (polecane, arkusz książki, półka, katalog) i kontrola przepełnienia poziomego.
 - Biblioteka: nowa pozycja w `shared/catalog/library/*` tylko po sprawdzeniu autora, tytułu i wydania polskiego w źródle; czego nie potwierdzono, to `v: '…opis braku…'` i `pl: 'unconfirmed'|'none'|'unchecked'`. Żadnych zadań pisarskich w opisach i refleksjach (pilnuje `tests/library.test.ts`). Stare klucze katalogu nie znikają (zapisane książki wskazują na `catalog_key`).
 - `node scripts/qa-v3.mjs <dir>` — przejście głównych przepływów ze zrzutami (po `shots.mjs` + `onboard.mjs`).

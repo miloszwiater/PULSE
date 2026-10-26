@@ -108,3 +108,31 @@ export function completeLessonRow(snap: Snapshot, key: string, done: boolean, no
     started_at: cur?.started_at ?? now, done_at: done ? now : null, last_opened_at: now, updated_at: now, deleted_at: null,
   });
 }
+
+/* ---------- self-check ---------- */
+
+export interface QuizQuestion { term: string; options: string[]; answer: number }
+
+function seeded(seed: string) {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) { h ^= seed.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return () => { h = Math.imul(h ^ (h >>> 13), 0x5bd1e995); h ^= h >>> 15; return (h >>> 0) / 4294967296; };
+}
+
+/**
+ * "Sprawdź się": one question per term the lesson defines. The correct option is the lesson's own definition,
+ * the distractors are definitions of other Academy terms — so every answer is right by construction, no new theory
+ * is written for the quiz. Deterministic per lesson. Nothing is stored or graded; it is a check for the person.
+ */
+export function lessonQuiz(lessonKey: string): QuizQuestion[] {
+  const lesson = LESSON_BY_KEY[lessonKey];
+  if (!lesson?.terms || lesson.terms.length < 2) return [];
+  const pool = PATHS.flatMap((p) => p.lessons.flatMap((l) => l.terms ?? [])).filter(([t]) => !lesson.terms!.some(([own]) => own === t));
+  const rnd = seeded(lessonKey);
+  const shuffle = <T,>(a: T[]): T[] => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  return lesson.terms.map(([term, def]) => {
+    const others = shuffle(pool.filter(([, d]) => d !== def)).slice(0, 2).map(([, d]) => d);
+    const options = shuffle([def, ...others]);
+    return { term, options, answer: options.indexOf(def) };
+  });
+}

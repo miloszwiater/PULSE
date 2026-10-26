@@ -45,9 +45,9 @@ export function ProjectsScreen() {
             return (
               <li key={p.id}>
                 <button className="crate__item" onClick={() => navigate(`/projekty/${p.id}`)}>
-                  <Sleeve p={p} />
+                  <span className="crate__art" style={{ '--tone': `var(--tone-${p.tone})` } as React.CSSProperties}><span className="crate__disc" aria-hidden="true" /><Sleeve p={p} /></span>
                   <span className="crate__title">{p.title}</span>
-                  <span className="crate__meta">{KIND_LABEL[p.kind]}{n ? ` · ${n} ${plural(n, 'utwór', 'utwory', 'utworów')}` : ''}</span>
+                  <span className="crate__meta">{KIND_LABEL[p.kind]}{n ? `, ${n} ${plural(n, 'utwór', 'utwory', 'utworów')}` : ''}</span>
                 </button>
               </li>
             );

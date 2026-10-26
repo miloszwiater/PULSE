@@ -13,8 +13,8 @@ const shot = async (name, full = false) => { await page.waitForTimeout(700); awa
 const go = async (p) => { await page.goto(BASE + p); await page.waitForTimeout(900); };
 
 await go('/tworz');
-await page.locator('.len', { hasText: '45 min' }).click();
-await page.locator('.launch__disc').click();
+await page.locator('.key', { hasText: '45 min' }).click();
+await page.locator('.deck .tt__deck').click();
 await shot('session');
 await page.getByLabel('Pauza').click();
 await shot('session_paused');

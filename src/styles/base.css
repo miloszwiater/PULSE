@@ -8,6 +8,8 @@ html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   background: var(--ink-0);
+  /* Room for the fixed tab bar when the browser scrolls a focused field into view. */
+  scroll-padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 24px);
 }
 
 body {
@@ -18,19 +20,42 @@ body {
   font-family: var(--font-text);
   font-size: var(--fs-base);
   line-height: var(--lh-text);
-  font-feature-settings: 'tnum' 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior-y: none;
   -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
+}
+
+/* Film grain: one fixed layer, very faint — the lacquer is never a flat digital black. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.055;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 #root {
+  position: relative;
+  z-index: 1;
   min-height: 100dvh;
 }
 
 h1, h2, h3, h4, p {
   margin: 0;
+}
+
+/* Display type: Bodoni Moda at its optical size; never below 20px. */
+.display,
+h1 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-optical-sizing: auto;
+  letter-spacing: -0.01em;
+  line-height: var(--lh-tight);
 }
 
 button,
@@ -46,24 +71,34 @@ button {
   background: none;
   border: 0;
   padding: 0;
+  touch-action: manipulation;
 }
 
 a {
   color: var(--violet-hi);
 }
 
+img {
+  max-width: 100%;
+  display: block;
+}
+
 :focus-visible {
-  outline: 2px solid var(--blue);
+  outline: 2px solid var(--violet-hi);
   outline-offset: 2px;
   border-radius: var(--r-xs);
 }
 
 ::selection {
-  background: var(--violet-wash);
+  background: rgba(139, 108, 255, 0.32);
 }
 
 .num {
   font-variant-numeric: tabular-nums;
+}
+
+.text {
+  color: var(--text);
 }
 
 .visually-hidden {

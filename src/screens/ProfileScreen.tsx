@@ -10,12 +10,13 @@ import { useScene } from '../ui/useScene';
 import { setHeroPhoto, useHeroPhoto } from '../ui/heroPhoto';
 import { toast } from '../ui/toast';
 import { Wordmark } from '../ui/Wordmark';
+import { HeroBackdrop } from '../ui/Hero';
 import { back } from '../app/router';
 
 const VALUE_SUGGESTIONS = ['Autentyczność', 'Rozwój', 'Wolność', 'Dyscyplina', 'Emocje', 'Rodzina', 'Zdrowie', 'Szczerość', 'Rzemiosło'];
 const SCENES = [
-  { value: 'auto', label: 'Pora dnia', hint: 'Niebo zmienia się od świtu do nocy.' },
-  { value: 'night', label: 'Zawsze noc', hint: 'Studio o północy.' },
+  { value: 'auto', label: 'Studio PULSE', hint: 'Fotografia nocnego studia w kolorach PULSE.' },
+  { value: 'night', label: 'Miasto nocą', hint: 'Generowana panorama miasta — inna dla każdego konta.' },
   { value: 'rain', label: 'Deszcz', hint: 'Noc z deszczem na szybie.' },
   { value: 'photo', label: 'Własne zdjęcie', hint: 'Zapisane tylko na tym urządzeniu.' },
 ] as const;
@@ -42,7 +43,7 @@ export function ProfileScreen() {
   return (
     <div className="profile">
       <section className="profile__hero">
-        <NightScene {...scene} />
+        <HeroBackdrop nowMin={clock.nowMin} />
         <header className="profile__top">
           <IconButton icon="back" label="Wróć" onClick={() => back('/ty')} />
           <IconButton icon="settings" label="Ustawienia" onClick={() => navigate('/ustawienia')} />
@@ -95,7 +96,7 @@ export function ProfileScreen() {
                 <span className="scenepick__thumb">
                   {sc.value === 'photo'
                     ? (photo ? <img src={photo} alt="" /> : <Icon name="image" size={22} />)
-                    : <NightScene seed={scene.seed} minute={sc.value === 'auto' ? clock.nowMin : 23 * 60} rain={sc.value === 'rain'} />}
+                    : sc.value === 'auto' ? <img src="/photos/desk.webp" alt="" /> : <NightScene seed={scene.seed} minute={23 * 60} rain={sc.value === 'rain'} />}
                 </span>
                 <span className="scenepick__label">{sc.label}</span>
               </button>

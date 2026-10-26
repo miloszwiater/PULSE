@@ -11,9 +11,11 @@ export function registerServiceWorker() {
           run: () => {
             w.postMessage({ type: 'SKIP_WAITING' });
           },
-        }, 12000);
+        }, 30000);
       };
-      if (reg.waiting && navigator.serviceWorker.controller) offerUpdate(reg.waiting);
+      // A version that finished installing while the app was closed is applied right at launch —
+      // nothing is in progress yet, so the cache never keeps an old version alive.
+      if (reg.waiting && navigator.serviceWorker.controller) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
       reg.addEventListener('updatefound', () => {
         const w = reg.installing;
         w?.addEventListener('statechange', () => {
@@ -27,6 +29,10 @@ export function registerServiceWorker() {
         location.reload();
       });
       setInterval(() => void reg.update().catch(() => undefined), 60 * 60 * 1000);
+      // iOS keeps home-screen apps suspended for days: look for a new version every time PULSE comes back.
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') void reg.update().catch(() => undefined);
+      });
     } catch (e) {
       console.warn('SW registration failed', e);
     }

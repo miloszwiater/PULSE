@@ -1,18 +1,17 @@
 import { useMemo } from 'react';
 import { PATH_BY_KEY, LESSON_BY_KEY, type PathKey } from '../../../shared/catalog/academy';
-import { allProgress, pathProgress } from '../../../shared/domain/academy';
+import { allProgress, lessonQuiz, pathProgress } from '../../../shared/domain/academy';
 import { useStore } from '../../data/store';
 import { openLesson, setLessonDone, saveLessonNote, setPathStatus, startPath, startSession } from '../../data/actions';
 import { navigate } from '../../app/router';
 import { Button, Empty, ScreenHeader } from '../../ui/kit';
-import { Icon, type IconName } from '../../ui/Icon';
+import { Icon } from '../../ui/Icon';
 import { SOURCE_BY_KEY } from '../../../shared/catalog/sources';
 import { BOOKS } from '../../../shared/catalog/books';
 import { ownedRow } from '../../../shared/domain/library';
 import { useEffect, useState } from 'react';
 import { toast } from '../../ui/toast';
 
-const PATH_ICON: Record<PathKey, IconName> = { vocal: 'mic', theory: 'music', flow: 'wave', writing: 'pen', analysis: 'headphones' };
 
 const toneVar = (t: number) => ({ '--tone': `var(--tone-${t})` } as React.CSSProperties);
 
@@ -35,10 +34,13 @@ export function AcademyScreen() {
           <div className="continue">
             {active.map((p) => p.next && (
               <button key={p.path.key} className="continue__item" style={toneVar(p.path.tone)} onClick={() => navigate(`/nauka/${p.path.key}/${p.next!.key}`)}>
-                <span className="continue__path">{p.path.title} · {p.done}/{p.total}</span>
-                <span className="continue__lesson">{p.next.title}</span>
-                <span className="continue__meta">ok. {p.next.minutes} min</span>
-                <span className="continue__bar" aria-hidden="true"><span style={{ width: `${(p.done / p.total) * 100}%` }} /></span>
+                <span className="continue__photo photo" aria-hidden="true"><img src={PATH_PHOTO[p.path.key]} alt="" /></span>
+                <span className="continue__text">
+                  <span className="continue__path">{p.path.title}, lekcja {p.path.lessons.indexOf(p.next) + 1} z {p.total}</span>
+                  <span className="continue__lesson">{p.next.title}</span>
+                  <span className="continue__meta"><Icon name="clock" size={14} /> ok. {p.next.minutes} min</span>
+                </span>
+                <Ticks total={p.total} done={p.done} />
               </button>
             ))}
           </div>
@@ -46,19 +48,18 @@ export function AcademyScreen() {
       )}
 
       <section className="block" aria-labelledby="paths-h">
-        <h2 className="block__title" id="paths-h">Ścieżki Akademii</h2>
+        <h2 className="block__title" id="paths-h">Ścieżki</h2>
         <ul className="paths">
-          {prog.map((p) => (
-            <li key={p.path.key}>
+          {prog.map((p, i) => (
+            <li key={p.path.key} style={{ '--i': i } as React.CSSProperties}>
               <button className="pathrow" style={toneVar(p.path.tone)} onClick={() => navigate(`/nauka/${p.path.key}`)}>
-                <span className="pathrow__glyph" aria-hidden="true"><Icon name={PATH_ICON[p.path.key]} size={20} /></span>
+                <span className="pathrow__photo photo" aria-hidden="true"><img src={PATH_PHOTO[p.path.key]} alt="" loading="lazy" /></span>
                 <span className="pathrow__text">
                   <span className="pathrow__title">{p.path.title}</span>
-                  <span className="pathrow__meta">{p.state === 'new' ? `${p.total} lekcji` : p.state === 'paused' ? `wstrzymana · ${p.done}/${p.total}` : p.state === 'done' ? 'ukończona' : `${p.done}/${p.total} lekcji`}</span>
+                  <span className="pathrow__meta">{p.state === 'new' ? `${p.total} lekcji` : p.state === 'paused' ? `Wstrzymana, ${p.done} z ${p.total}` : p.state === 'done' ? 'Ukończona — można wracać' : `${p.done} z ${p.total} lekcji`}</span>
+                  <Ticks total={p.total} done={p.done} />
                 </span>
-                <span className="pathrow__ticks" aria-hidden="true">
-                  {p.path.lessons.map((l, i) => <span key={l.key} className={i < p.done ? 'is-on' : ''} />)}
-                </span>
+                <Icon name="chevron" size={18} />
               </button>
             </li>
           ))}
@@ -66,11 +67,11 @@ export function AcademyScreen() {
       </section>
 
       <section className="block">
-        <button className="pathrow pathrow--books" onClick={() => navigate('/nauka/ksiazki')}>
-          <span className="pathrow__glyph" aria-hidden="true"><Icon name="book" size={20} /></span>
-          <span className="pathrow__text">
-            <span className="pathrow__title">Biblioteka</span>
-            <span className="pathrow__meta">{books ? `${books} na półce${reading ? `, ${reading} w trakcie` : ''} · ` : ''}{BOOKS.filter((b) => !b.retired).length} książek o obrazie, języku i wrażliwości</span>
+        <button className="libcard" onClick={() => navigate('/nauka/ksiazki')}>
+          <span className="libcard__photo photo" aria-hidden="true"><img src="/photos/library.webp" alt="" loading="lazy" /></span>
+          <span className="libcard__text">
+            <span className="libcard__title">Biblioteka</span>
+            <span className="libcard__meta">{BOOKS.filter((b) => !b.retired).length} książek o obrazie, języku i wrażliwości{books ? `. Na półce: ${books}${reading ? `, czytasz ${reading}` : ''}.` : '.'}</span>
           </span>
           <Icon name="chevron" size={18} />
         </button>
@@ -79,6 +80,19 @@ export function AcademyScreen() {
   );
 }
 
+/** Lessons of a path as segments — filled ones are done. */
+function Ticks({ total, done }: { total: number; done: number }) {
+  return (
+    <span className="ticks" role="img" aria-label={`${done} z ${total} lekcji ukończone`}>
+      {Array.from({ length: total }, (_, i) => <span key={i} className={i < done ? 'is-on' : ''} />)}
+    </span>
+  );
+}
+
+const PATH_PHOTO: Record<PathKey, string> = {
+  vocal: '/photos/vocal.webp', theory: '/photos/theory.webp', flow: '/photos/flow.webp', writing: '/photos/writing.webp', analysis: '/photos/analysis.webp',
+};
+
 export function PathScreen({ pathKey }: { pathKey: string }) {
   const snap = useStore((s) => s.snap);
   const path = PATH_BY_KEY[pathKey as PathKey];
@@ -86,11 +100,13 @@ export function PathScreen({ pathKey }: { pathKey: string }) {
   const p = pathProgress(snap, path.key);
   const related = BOOKS.filter((b) => !b.retired && b.paths.includes(path.key)).slice(0, 4);
   return (
-    <div className="screen learn" style={toneVar(path.tone)}>
+    <div className="screen learn pathscreen" style={toneVar(path.tone)}>
+      <div className="pathhero photo" aria-hidden="true"><img src={PATH_PHOTO[path.key]} alt="" /></div>
       <ScreenHeader title={path.title} onBack={() => navigate('/nauka')} />
       <p className="learn__desc">{path.description}</p>
       <div className="pathstate">
         <span className="pathstate__count num">{p.done}<span>/{p.total}</span></span>
+        <Ticks total={p.total} done={p.done} />
         <span className="pathstate__label">{p.state === 'new' ? 'nie zaczęta' : p.state === 'paused' ? 'wstrzymana — postęp zostaje' : p.state === 'done' ? 'ukończona — można wracać' : 'lekcji ukończonych'}</span>
         <div className="pathstate__actions">
           {p.state === 'new' && <Button variant="primary" onClick={() => { startPath(path.key); navigate(`/nauka/${path.key}/${path.lessons[0].key}`); }}>Zacznij ścieżkę</Button>}
@@ -152,7 +168,7 @@ export function LessonScreen({ lessonKey }: { lessonKey: string }) {
   const toggle = (k: string) => { const n = new Set(checked); if (n.has(k)) n.delete(k); else n.add(k); setChecked(n); };
   return (
     <div className="screen learn lesson" style={toneVar(path.tone)}>
-      <ScreenHeader title="" onBack={() => navigate(`/nauka/${path.key}`)} actions={<span className="lesson__crumb">{path.title} · {lesson.index + 1}/{path.lessons.length}</span>} />
+      <ScreenHeader title="" onBack={() => navigate(`/nauka/${path.key}`)} actions={<span className="lesson__crumb">{path.title}, {lesson.index + 1} z {path.lessons.length}</span>} />
       <h1 className="lesson__title">{lesson.title}</h1>
       <p className="lesson__summary">{lesson.summary}</p>
       <div className="lesson__body">
@@ -187,6 +203,8 @@ export function LessonScreen({ lessonKey }: { lessonKey: string }) {
         </section>
       ))}
       {lesson.safety && <p className="safety"><Icon name="shield" size={18} /> {lesson.safety}</p>}
+
+      <Quiz lessonKey={lesson.key} />
 
       <h2 className="lesson__h">Źródła</h2>
       <ul className="sources">
@@ -226,3 +244,42 @@ export function LessonScreen({ lessonKey }: { lessonKey: string }) {
   );
 }
 
+
+/** Self-check built from the lesson's own definitions. Nothing is stored — it is only for the person. */
+function Quiz({ lessonKey }: { lessonKey: string }) {
+  const questions = useMemo(() => lessonQuiz(lessonKey), [lessonKey]);
+  const [picked, setPicked] = useState<Record<number, number>>({});
+  if (!questions.length) return null;
+  const answered = Object.keys(picked).length;
+  const right = questions.filter((q, i) => picked[i] === q.answer).length;
+  return (
+    <section className="quiz" aria-labelledby="quiz-h">
+      <div className="quiz__head">
+        <h2 className="lesson__h" id="quiz-h">Sprawdź się</h2>
+        <span className="quiz__score num" aria-live="polite">{answered ? `${right}/${questions.length}` : `${questions.length} pytania`}</span>
+      </div>
+      <p className="dim small">Krótko, na podstawie pojęć z tej lekcji. Wynik nigdzie się nie zapisuje.</p>
+      <ol className="quiz__list">
+        {questions.map((q, i) => (
+          <li key={q.term} className="quiz__q">
+            <p className="quiz__ask">Co oznacza „{q.term}”?</p>
+            <div className="quiz__opts" role="group" aria-label={`Odpowiedzi: ${q.term}`}>
+              {q.options.map((o, j) => {
+                const chosen = picked[i] === j;
+                const reveal = picked[i] != null;
+                const cls = reveal && j === q.answer ? ' is-right' : chosen ? ' is-wrong' : '';
+                return (
+                  <button key={j} className={`quiz__opt${cls}`} aria-pressed={chosen} disabled={reveal} onClick={() => setPicked({ ...picked, [i]: j })}>
+                    <span>{o}</span>
+                    {reveal && j === q.answer && <Icon name="check" size={16} />}
+                  </button>
+                );
+              })}
+            </div>
+          </li>
+        ))}
+      </ol>
+      {answered > 0 && <button className="btn btn--quiet" onClick={() => setPicked({})}>Od nowa</button>}
+    </section>
+  );
+}

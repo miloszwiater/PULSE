@@ -6,14 +6,14 @@ test('Creative Workflow: one tap start → pause → finish saves without a form
   await page.clock.install();
   await newUser(page);
   await page.getByRole('button', { name: 'Twórz' }).click();
-  await page.locator('.launch__disc').click();
+  await page.locator('.deck .tt__deck').click();
   await expect(page).toHaveURL(/\/sesja/);
   await page.clock.fastForward('01:00:00');
   await page.getByRole('button', { name: 'Pauza' }).click();
   await page.clock.fastForward('00:20:00');
   await page.getByRole('button', { name: 'Wznów' }).click();
   await page.clock.fastForward('00:30:00');
-  await expect(page.locator('.session3__time')).toHaveText(/1:30:0\d/);
+  await expect(page.locator('.session__time')).toHaveText(/1:30:0\d/);
   await page.getByRole('button', { name: 'Zakończ' }).click();
   await expect(page.locator('.finished__time')).toHaveText('1 h 30 min');
   await page.getByRole('button', { name: 'Gotowe' }).click();
@@ -29,21 +29,21 @@ test('custom workflow starts with its length and focus', async ({ page }) => {
   await page.getByRole('button', { name: 'Wieczór w studiu' }).click();
   await page.getByRole('button', { name: 'Zacznij: Wieczór w studiu' }).click();
   await expect(page).toHaveURL(/\/sesja/);
-  await expect(page.locator('.session3__title')).toHaveText('Wieczór w studiu');
-  await expect(page.locator('.session3__target')).toContainText('1 h 30 min');
-  await expect(page.locator('.session3')).toHaveClass(/is-focus/);
+  await expect(page.locator('.session__title')).toHaveText('Wieczór w studiu');
+  await expect(page.locator('.session__target')).toContainText('1 h 30 min');
+  await expect(page.locator('.session')).toHaveClass(/is-focus/);
 });
 
 test('timer survives a locked phone / killed tab (timestamps, not ticks)', async ({ page }) => {
   await page.clock.install();
   await newUser(page);
   await page.goto('/tworz');
-  await page.locator('.launch__disc').click();
+  await page.locator('.deck .tt__deck').click();
   await expect(page).toHaveURL(/\/sesja/);
   await page.waitForTimeout(800); // let the outbox persist
   await page.clock.fastForward('00:47:00');
   await page.reload();
-  await expect(page.locator('.session3__time')).toHaveText(/47:\d\d/);
+  await expect(page.locator('.session__time')).toHaveText(/47:\d\d/);
 });
 
 test('spontaneous session covers same-day planned music automatically; time counted once', async ({ page }) => {
@@ -55,7 +55,7 @@ test('spontaneous session covers same-day planned music automatically; time coun
     data: { id: 'ev_planned_1', updated_at: Date.now(), kind: 'music', title: 'Czas na muzykę', date: today, start_min: 1320, end_min: 1410 },
   }]);
   await page.goto('/tworz');
-  await page.locator('.launch__disc').click();
+  await page.locator('.deck .tt__deck').click();
   await page.clock.fastForward('05:00:00');
   await page.getByRole('button', { name: 'Zakończ' }).click();
   await expect(page.locator('.finished__plan')).toContainText('Czas na muzykę');
@@ -247,15 +247,39 @@ test('sick report adjusts the day and is not punished', async ({ page }) => {
   await expect(page.locator('.daystatus')).toContainText('Choroba');
 });
 
-test('no horizontal overflow on main screens (375px)', async ({ page }) => {
-  await page.setViewportSize({ width: 375, height: 740 });
+test('no horizontal overflow on main screens (320, 375 and 430 px)', async ({ page }) => {
+  test.setTimeout(120_000);
   await newUser(page);
-  for (const path of ['/', '/plan', '/plan?v=week', '/plan?v=month', '/tworz', '/nauka', '/nauka/vocal', '/nauka/flow/flow-grid', '/nauka/ksiazki', '/ty', '/ty/rytm', '/towarzysz', '/skupienie', '/care', '/ustawienia', '/projekty', '/profil']) {
-    await page.goto(path);
-    await page.waitForTimeout(300);
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-    expect(overflow, `overflow on ${path}`).toBeLessThanOrEqual(0);
+  for (const width of [320, 375, 430]) {
+    await page.setViewportSize({ width, height: 740 });
+    for (const path of ['/', '/plan', '/plan?v=week', '/plan?v=month', '/tworz', '/nauka', '/nauka/vocal', '/nauka/flow/flow-grid', '/nauka/ksiazki', '/ty', '/ty/rytm', '/towarzysz', '/skupienie', '/care', '/ustawienia', '/projekty', '/profil']) {
+      await page.goto(path);
+      await page.waitForTimeout(300);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(overflow, `overflow on ${path} at ${width}px`).toBeLessThanOrEqual(0);
+    }
   }
+});
+
+test('the record turns only while time runs, and the needle follows the session', async ({ page }) => {
+  await page.clock.install();
+  await newUser(page);
+  await page.goto('/tworz');
+  await page.locator('.key', { hasText: '45 min' }).click();
+  await page.getByRole('button', { name: 'Zacznij — 45 min' }).click();
+  await expect(page).toHaveURL(/\/sesja/);
+  await expect(page.locator('.session .tt')).toHaveClass(/tt--playing/);
+  const armAt = () => page.locator('.session .tt__arm').evaluate((el) => (el as SVGGElement).style.transform);
+  const early = await armAt();
+  await page.clock.fastForward('00:30:00');
+  const later = await armAt();
+  expect(parseFloat(later.replace(/[^\d.-]/g, ''))).toBeGreaterThan(parseFloat(early.replace(/[^\d.-]/g, '')));
+  await page.getByRole('button', { name: 'Pauza', exact: true }).click();
+  await expect(page.locator('.session .tt')).toHaveClass(/tt--paused/);
+  await expect(page.locator('.session__state')).toHaveText('Pauza — czas stoi');
+  // Tapping the record itself resumes.
+  await page.getByRole('button', { name: 'Uruchom płytę' }).click();
+  await expect(page.locator('.session .tt')).toHaveClass(/tt--playing/);
 });
 
 test('planning reset removes outdated plans, keeps real history, and nothing comes back', async ({ page }) => {

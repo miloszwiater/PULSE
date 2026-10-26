@@ -1,6 +1,42 @@
 # PULSE — design system
 
-## Wersja 3 — „płyta”
+## Wersja 4 — „Lakier” (obecna)
+Koncept: osobiste studio nocą. Lakierowana czerń płyty, grafit sprzętu, światło lampy nad gramofonem. Motywy muzyczne pełnią funkcję, nie dekorują: **winyl jest timerem**, rowki to tygodnie, diody VU to sesje tygodnia, „playhead” to teraz w planie, pady to dni miesiąca.
+
+**Paleta** (`src/styles/tokens.css`, nazwy zmiennych zachowane z v1–v3, więc każdy ekran dziedziczy):
+| Nazwa | Hex | Rola |
+|---|---|---|
+| Lakier `--ink-0` | `#09080C` | tło |
+| Grafit `--ink-1…4` | `#121116` → `#2C2935` | arkusze, kontrolki, wciśnięcie |
+| Rowek `--line` | `#1F1D26` | linie list |
+| Papier etykiety `--text` | `#EEEAF4` (+ `#AAA4B8`, `#7B7689`) | tekst |
+| Ultrafiolet `--violet` | `#8B6CFF` | to, co żywe i klikalne: akcja, postęp, „teraz” |
+| Wskazówka VU `--vu` | `#E9B872` | nauka, dni chronione, przekroczony zamiar, pauza |
+
+**Typografia:** Bodoni Moda (didona jak z okładki płyty; z osią optical size) dla tytułów ekranów, nagłówka dnia, timera, liczb i tytułów książek — nigdy poniżej ~20 px. Onest dla całego interfejsu i treści. Bez wersalików w etykietach, bez monospace, cyfry timera w stałej szerokości (`TimerDigits`), żeby nie skakały.
+
+**Fotografia:** 9 zdjęć (studio nocą, mikrofon, klawisze, słuchawki, pisanie nocą, konsoleta, zaparowana szyba, regał z książkami, gramofon) w `public/photos/`, wszystkie przepuszczone przez ten sam duotone (lakier → ultrafiolet → papier, 14% oryginalnego koloru, lekkie ziarno), żeby brzmiały jak jedna sesja zdjęciowa, a nie stock. Zdjęcie Start można zamienić w Profilu na generowane miasto nocą albo własne zdjęcie (tylko na urządzeniu). Źródła i licencje — niżej.
+
+**Promienie:** 4 (tagi, kalendarz) · 12 (kontrolki) · 18 (wyróżniona powierzchnia) · 26 (arkusze) · koło (płyty, przyciski transportu).
+
+**Komponenty sygnaturowe:**
+- `Turntable` (`src/ui/Turntable.tsx`): talerz obraca się z prawdziwą prędkością 33⅓ obr./min (1,8 s/obrót) z bezwładnością (Web Animations, rozpędzanie 0,7 s, wybieg 1,3 s); ramię prowadzi igłę od zewnętrznego rowka do wybiegu wraz z postępem do zamierzonej długości, przy pauzie się unosi; po przekroczeniu zamiaru łuk zmienia kolor na VU; odbicia stoją, gdy płyta się kręci; nadruk etykiety i znaczniki stroboskopu pokazują ruch. Dotknięcie płyty = pauza/wznowienie. Ten sam egzemplarz na Twórz animuje start (czas liczy się od dotknięcia).
+- `slab` — główna akcja aplikacji (Start, Skupienie): płyta na fioletowej płycie przycisku.
+- Klawisze długości z „lampką”, przełącznik segmentowy z przesuwanym suwakiem, przełącznik sprzętowy.
+- Lampka zakładki: krótka ultrafioletowa linia jak podświetlony kanał na mikserze; zakładka Twórz to mała płyta, która kręci się w trakcie sesji.
+
+**Ruch** (tokeny: 120 ms nacisk · 220 ms zmiana stanu · 420 ms wejście · 460 ms arkusz · 1,8 s obrót): jeden zorchestrowany moment na ekranie (wejście zdjęcia Start, rysowanie rowków rytmu, kolejne ścieżki Akademii), reszta odpowiada na dotyk (wciśnięcie, arkusz, przesunięcie suwaka, ruch igły, potrząśnięcie złej odpowiedzi w quizie). Przejścia ekranów przez View Transitions. `prefers-reduced-motion`: bez obrotów, przejść i animacji wejścia.
+
+**Responsywność:** testowane 320 / 375 / 390 / 430 px (E2E pilnuje braku poziomego przewijania na 17 ekranach w trzech szerokościach); safe areas w nagłówkach, pasku i arkuszach; `100dvh/svh`; pola ≥ 16 px; `scroll-padding-bottom` pod pasek zakładek; elementy siatek z `min-width: 0`.
+
+**Pliki stylów:** `tokens` → `base` (ziarno, typografia) → `ui` (komponenty) → `app` (powłoka, pasek, przejścia) → obszary: `create` (gramofon, Twórz, sesja, projekty), `today`, `plan`, `learn` (Akademia, quiz, Biblioteka), `rest` (Ty, Rytm, Skupienie, Towarzysz, Samopoczucie, Profil, logowanie, onboarding).
+
+**Źródła zdjęć** (licencje pozwalają na użycie komercyjne i modyfikację bez przypisania; zdjęcia są przetworzone):
+- Pexels (Pexels License): mikrofon `31050644`, konsoleta nocą `1436141`, gramofon `5118434`.
+- Burst by Shopify (licencja Burst): `studying-alone` (studio nocą), `close-up-piano-keyboard-keys`, `black-and-white-black-headphones`, `introspective-journaling`, `foggy-window`, `antique-books-on-shelves`.
+
+
+## Wersja 3 — „płyta” (historyczna)
 Koncept: tydzień to rowki płyty, sesja to obracający się krążek. Jeden znak rozpoznawczy na ekran, reszta cicha.
 - **Pierścień rytmu** (`src/ui/Rhythm.tsx`, ekran Dziś): 4 tygodnie jako 4 rowki (zewnętrzny = ten tydzień, poniedziałek u góry). Każdy łuk to dzień; jasność = realny czas muzyki, piasek = dzień chroniony (choroba/urlop/wolne), błękit = plan. Rysuje się raz po starcie aplikacji (jedyna animacja nie wywołana akcją).
 - **Krążek startu** (Twórz) i **krążek sesji**: winyl z rowkami; obraca się tylko, gdy czas biegnie (stop przy pauzie), łuk postępu do wybranej długości; po przekroczeniu zamiaru łuk zmienia kolor na piaskowy (bez alarmu). Ikona Twórz w pasku to mała płyta, która kręci się podczas trwającej sesji.

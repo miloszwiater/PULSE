@@ -1,0 +1,148 @@
+/* ── Plan ──────────────────────────────────────────────── */
+.plan .segmented { margin-bottom: var(--s-2); }
+.datenav { display: flex; align-items: center; justify-content: space-between; margin: var(--s-2) calc(-1 * var(--s-3)) var(--s-3); }
+.datenav__title { font-family: var(--font-display); font-weight: 500; font-size: var(--fs-lg); min-height: var(--touch); padding: 0 var(--s-3); border-radius: var(--r-sm); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.datenav__title:hover { background: var(--ink-1); }
+.plan .notice { margin-bottom: var(--s-2); }
+
+.plan__gen { display: grid; gap: var(--s-3); margin-top: var(--s-10); padding-top: var(--s-5); border-top: 1px solid var(--line); }
+.plan__genrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-2); }
+.plan__genrow .btn { padding: 0 var(--s-2); font-size: var(--fs-sm); }
+
+/* Week strip: seven days; the chosen one is a lit key */
+.weekstrip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin: var(--s-1) 0 var(--s-3); }
+.weekstrip__d { display: grid; justify-items: center; gap: 3px; padding: 8px 0 7px; border-radius: var(--r-sm); color: var(--text-3); transition: background var(--t-base), color var(--t-base); }
+.weekstrip__wd { font-size: 11px; font-weight: 600; }
+.weekstrip__n { font-family: var(--font-display); font-weight: 500; font-size: 1.25rem; line-height: 1.1; color: var(--text); font-variant-numeric: lining-nums; }
+.weekstrip__dot { width: 4px; height: 4px; border-radius: 50%; background: transparent; }
+.weekstrip__dot.is-on { background: var(--violet-hi); }
+.weekstrip__d.is-today .weekstrip__n { color: var(--violet-hi); }
+.weekstrip__d.is-on { background: var(--text); color: var(--ink-3); box-shadow: 0 10px 20px -12px rgba(238, 234, 244, 0.5); }
+.weekstrip__d.is-on .weekstrip__n { color: var(--ink-0); }
+.weekstrip__d.is-on .weekstrip__dot.is-on { background: var(--violet); }
+
+/* Day meta */
+.dayview__meta { display: grid; gap: var(--s-2); margin: var(--s-2) 0 var(--s-5); }
+.daystatus { display: inline-flex; align-items: center; gap: 8px; justify-self: start; min-height: 36px; padding: 0 var(--s-3); border-radius: var(--r-pill); border: 1px solid var(--line-strong); font-size: var(--fs-sm); font-weight: 600; }
+.daystatus__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px rgba(111, 209, 168, 0.6); }
+.daystatus--sick .daystatus__dot,
+.daystatus--overloaded .daystatus__dot { background: var(--danger); box-shadow: 0 0 8px rgba(242, 104, 124, 0.6); }
+.daystatus--off .daystatus__dot,
+.daystatus--vacation .daystatus__dot,
+.daystatus--low .daystatus__dot { background: var(--vu); box-shadow: 0 0 8px rgba(233, 184, 114, 0.6); }
+.dayview__cap { color: var(--text-2); font-size: var(--fs-sm); max-width: 54ch; }
+.dayview__cap strong { color: var(--text); font-weight: 650; }
+.dayview__done { color: var(--ok); display: flex; align-items: center; gap: 6px; }
+
+/* Timeline: hours on grooves, free windows as soft hatching, "now" as an ultraviolet playhead */
+.timeline { position: relative; }
+.timeline__hour { position: absolute; left: 0; right: 0; height: calc(60 * 0.8px); border-top: 1px solid var(--line); text-align: left; display: block; }
+.timeline__hour:hover { background: rgba(255, 255, 255, 0.015); }
+.timeline__label { position: absolute; top: -9px; left: 0; font-size: 11px; color: var(--text-3); background: var(--ink-0); padding-right: 6px; font-variant-numeric: tabular-nums; }
+.timeline__window { position: absolute; left: 52px; right: 0; border-radius: var(--r-xs); background: repeating-linear-gradient(-45deg, rgba(139, 108, 255, 0.06) 0 6px, transparent 6px 12px); box-shadow: inset 2px 0 0 rgba(139, 108, 255, 0.35); pointer-events: none; }
+.timeline__now { position: absolute; left: 44px; right: 0; height: 2px; background: var(--violet); box-shadow: 0 0 10px rgba(139, 108, 255, 0.8); pointer-events: none; z-index: 2; }
+.timeline__now::before { content: ''; position: absolute; left: -6px; top: -5px; border: 6px solid transparent; border-left: 8px solid var(--violet); border-right: 0; }
+.timeline__legend { margin-top: var(--s-3); display: flex; align-items: center; gap: 8px; }
+.legend-swatch { width: 14px; height: 10px; flex: none; box-shadow: inset 2px 0 0 rgba(139, 108, 255, 0.5); background: repeating-linear-gradient(-45deg, rgba(139, 108, 255, 0.18) 0 3px, transparent 3px 6px); }
+
+.tblock {
+  position: absolute;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  text-align: left;
+  padding: 6px 9px 6px 11px;
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: var(--fs-xs);
+  background: var(--ink-2);
+  box-shadow: inset 3px 0 0 var(--k), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  transition: filter var(--t-fast), transform var(--t-fast) var(--ease-out);
+  z-index: 1;
+}
+.tblock:active { filter: brightness(1.2); transform: scale(0.99); }
+/* Development (music, learning, reading): tinted with its colour, the things PULSE plans */
+.tblock--dev { background: color-mix(in srgb, var(--k) 20%, var(--ink-1)); box-shadow: inset 3px 0 0 var(--k), inset 0 0 0 1px color-mix(in srgb, var(--k) 30%, transparent); }
+/* Fixed schedule (work, commute): hatched graphite — life, set by the person */
+.tblock--routine { background: repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.025) 0 5px, transparent 5px 10px), var(--ink-2); }
+.tblock__text { display: grid; gap: 1px; min-width: 0; }
+.tblock__title { font-weight: 650; font-size: var(--fs-sm); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tblock__sub { color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tblock__icon { flex: none; width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: var(--k); background: color-mix(in srgb, var(--k) 18%, transparent); }
+.tblock.is-done,
+.tblock.is-covered { background: color-mix(in srgb, var(--ok) 16%, var(--ink-1)); box-shadow: inset 3px 0 0 var(--ok); }
+.tblock.is-partial { box-shadow: inset 3px 0 0 var(--k), inset 0 0 0 1px dashed; }
+.tblock.is-skipped,
+.tblock.is-excused { opacity: 0.5; background: var(--ink-1); }
+.tblock.is-skipped .tblock__title,
+.tblock.is-excused .tblock__title { text-decoration: line-through; }
+
+.event-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-2); }
+
+/* Week: each day a strip of tape with its blocks */
+.weekview__sum { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-5); color: var(--text-2); font-size: var(--fs-sm); margin: var(--s-1) 0 var(--s-4); }
+.weekview__sum strong { color: var(--text); font-weight: 500; font-family: var(--font-display); font-size: 1.25rem; font-variant-numeric: lining-nums; }
+.weekrows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.weekrow { display: flex; align-items: center; gap: var(--s-3); width: 100%; text-align: left; padding: var(--s-3) 0; border-bottom: 1px solid var(--line); min-height: 68px; }
+.weekrow.is-past { opacity: 0.6; }
+.weekrow__day { display: grid; justify-items: center; width: 36px; flex: none; }
+.weekrow__wd { font-size: var(--fs-xs); color: var(--text-3); font-weight: 600; }
+.weekrow__dn { font-family: var(--font-display); font-weight: 500; font-size: 1.375rem; line-height: 1.1; font-variant-numeric: lining-nums; }
+.weekrow.is-today .weekrow__dn { color: var(--violet-hi); }
+.weekrow__main { flex: 1; min-width: 0; display: grid; gap: 7px; }
+.weekrow__info { font-size: var(--fs-xs); color: var(--text-2); }
+.weekrow__done { color: var(--ok); }
+.strip { position: relative; height: 12px; border-radius: 3px; background: repeating-linear-gradient(90deg, var(--ink-2) 0 calc(100% / 18 - 1px), var(--ink-1) calc(100% / 18 - 1px) calc(100% / 18)); overflow: hidden; }
+.strip__b { position: absolute; top: 0; bottom: 0; background: var(--k); opacity: 0.9; border-radius: 2px; }
+.strip__b.is-done,
+.strip__b.is-covered { background: var(--ok); }
+.strip__b.is-skipped,
+.strip__b.is-excused { opacity: 0.3; }
+.loadmark { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; border: 2px solid var(--text-3); }
+.loadmark--long { background: var(--violet); border-color: var(--violet); box-shadow: 0 0 8px rgba(139, 108, 255, 0.6); }
+.loadmark--normal { background: color-mix(in srgb, var(--violet) 45%, transparent); border-color: var(--violet); }
+.loadmark--light { border-color: var(--vu); }
+.loadmark--none { border-color: var(--ink-4); background: var(--ink-4); }
+.legend { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-4); margin-top: var(--s-3); }
+.legend > span { display: inline-flex; align-items: center; gap: 6px; }
+
+/* Month: pads that light up with how much music each day had */
+.monthgrid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; margin-top: var(--s-2); }
+.monthgrid__wd { text-align: center; font-size: var(--fs-xs); color: var(--text-3); font-weight: 600; padding-bottom: 4px; }
+.monthgrid__cell {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: linear-gradient(180deg, #1c1a22, #141319);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 1px 0 #050407;
+  color: var(--text-3);
+  transition: transform var(--t-fast) var(--ease-out);
+}
+.monthgrid__cell:active:not(.is-empty) { transform: scale(0.94); }
+.monthgrid__cell.is-empty { background: transparent; box-shadow: none; }
+.monthgrid__cell.lvl-1 { background: color-mix(in srgb, var(--violet) 26%, #16151b); color: var(--text); }
+.monthgrid__cell.lvl-2 { background: color-mix(in srgb, var(--violet) 55%, #16151b); color: #fff; }
+.monthgrid__cell.lvl-3 { background: var(--violet); color: #fff; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 0 16px -4px rgba(139, 108, 255, 0.9); }
+.monthgrid__cell.is-today { outline: 2px solid var(--text); outline-offset: -2px; }
+.monthgrid__planned { position: absolute; bottom: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--blue); }
+.monthgrid__st { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--vu); }
+.mlegend { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
+.mlegend.lvl-1 { background: color-mix(in srgb, var(--violet) 26%, var(--ink-1)); }
+.mlegend.lvl-2 { background: color-mix(in srgb, var(--violet) 55%, var(--ink-1)); }
+.mlegend.lvl-3 { background: var(--violet); }
+.mlegend--planned { width: 6px; height: 6px; border-radius: 50%; background: var(--blue); }
+
+/* Proposals and history */
+.changes { list-style: none; margin: 0; padding: 0; display: grid; border-top: 1px solid var(--line); }
+.changes__item { display: flex; gap: var(--s-3); align-items: flex-start; font-size: var(--fs-sm); padding: var(--s-3) 0; border-bottom: 1px solid var(--line); }
+.changes__item svg { flex: none; color: var(--violet-hi); margin-top: 2px; }
+.daynotes { list-style: none; margin: 0; padding: 0; display: grid; border-top: 1px solid var(--line); }
+.daynotes li { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: var(--s-3); padding: var(--s-2) 0; border-bottom: 1px solid var(--line); font-size: var(--fs-sm); color: var(--text-2); }
+.daynotes li.is-planned .daynotes__day { color: var(--violet-hi); }
+.daynotes__day { font-weight: 600; color: var(--text-3); }
+.history-row { align-items: center; }

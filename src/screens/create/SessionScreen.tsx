@@ -11,7 +11,7 @@ import { back, navigate } from '../../app/router';
 import { Button, Confirm, Empty, Field, IconButton, Sheet } from '../../ui/kit';
 import { Icon } from '../../ui/Icon';
 import { formatTimer } from '../../ui/format';
-import { SessionDisc } from '../../ui/Rhythm';
+import { TimerDigits, Turntable } from '../../ui/Turntable';
 import { toast } from '../../ui/toast';
 import { shortcutUrl } from '../FocusScreen';
 
@@ -84,40 +84,46 @@ function LiveSession({ session, onFinished }: { session: Session; onFinished: (i
     onFinished(saved.id);
   };
 
+  const over = target != null && secs >= target * 60;
+  const toggle = () => (paused ? resume(session) : pause(session));
+
   return (
-    <div className={`session3${focus ? ' is-focus' : ''}${paused ? ' is-paused' : ''}`} style={workflow ? ({ '--tone': `var(--tone-${workflow.tone})` } as React.CSSProperties) : undefined}>
-      <header className="session3__top">
+    <div className={`session${focus ? ' is-focus' : ''}${paused ? ' is-paused' : ''}`}>
+      <div className="session__lamp" aria-hidden="true" />
+      <header className="session__top">
         <IconButton icon="back" label="Zminimalizuj sesję" onClick={() => back('/tworz')} />
-        <div className="session3__heading">
-          <p className="session3__title">{title}</p>
-          <p className="session3__state">{paused ? 'Pauza — czas stoi' : focus ? 'Skupienie' : 'Czas biegnie'}</p>
+        <div className="session__heading">
+          <p className="session__title">{title}</p>
+          <p className="session__state" aria-live="polite">{paused ? 'Pauza — czas stoi' : focus ? 'Skupienie' : 'Czas biegnie'}</p>
         </div>
         <IconButton icon="focus" label={focus ? 'Wyłącz tryb skupienia' : 'Tryb skupienia'} className={focus ? 'is-active' : ''} aria-pressed={focus} onClick={() => updateSession(session, { focus_mode: !focus })} />
       </header>
 
-      <section className="session3__stage" aria-label="Czas sesji">
-        <SessionDisc seconds={secs} targetMinutes={target} paused={paused}>
-          <span className="session3__time num" aria-label={`Czas sesji: ${minutes} minut`}>{formatTimer(secs)}</span>
-          <span className="session3__target">{target ? (secs >= target * 60 ? `Zamiar ${durationLabel(target)} za Tobą` : `z ${durationLabel(target)}`) : 'bez limitu'}</span>
-        </SessionDisc>
-        {workflow?.intention && <p className="session3__intention">{workflow.intention}</p>}
+      <section className="session__stage" aria-label="Czas sesji">
+        <Turntable state={paused ? 'paused' : 'playing'} progress={sessionProgress(secs, target)} over={over} label={title}
+          tone={workflow ? `var(--tone-${workflow.tone})` : undefined} onToggle={toggle} toggleLabel={paused ? 'Uruchom płytę' : 'Zatrzymaj płytę'}>
+          <span className="visually-hidden">Czas sesji: {minutes} minut</span>
+          <TimerDigits text={formatTimer(secs)} className="session__time" />
+          <span className={`session__target${over ? ' is-over' : ''}`}>{target ? (over ? `Zamiar ${durationLabel(target)} za Tobą` : `z ${durationLabel(target)}`) : 'bez limitu'}</span>
+        </Turntable>
+        {workflow?.intention && <p className="session__intention">{workflow.intention}</p>}
       </section>
 
-      <div className="session3__controls">
-        <button className="ctl3" onClick={() => { updateSession(session, { started_at: Math.min(session.started_at + 600000, Date.now()) }); toast('Odjęto 10 minut.', 'info'); }} disabled={secs < 600} aria-label="Odejmij 10 minut">
+      <div className="session__controls">
+        <button className="ctl" onClick={() => { updateSession(session, { started_at: Math.min(session.started_at + 600000, Date.now()) }); toast('Odjęto 10 minut.', 'info'); }} disabled={secs < 600} aria-label="Odejmij 10 minut">
           <span className="num">−10</span>
         </button>
-        <button className="ctl3 ctl3--main" onClick={() => (paused ? resume(session) : pause(session))} aria-label={paused ? 'Wznów' : 'Pauza'}>
+        <button className="ctl ctl--main" onClick={toggle} aria-label={paused ? 'Wznów' : 'Pauza'}>
           <Icon name={paused ? 'play' : 'pause'} size={30} strokeWidth={2.4} fill={paused ? 'currentColor' : 'none'} />
         </button>
-        <button className="ctl3 ctl3--done" onClick={finishNow} aria-label="Zakończ">
+        <button className="ctl ctl--done" onClick={finishNow} aria-label="Zakończ">
           <Icon name="check" size={26} strokeWidth={2.4} />
         </button>
       </div>
-      <p className="session3__fine">Czas liczony z zegara — także przy zablokowanym telefonie. „Zakończ” zapisuje od razu.</p>
+      <p className="session__fine">Czas liczony z zegara — także przy zablokowanym telefonie. „Zakończ” zapisuje od razu.</p>
 
       {focus && (
-        <section className="session3__focus" aria-label="Tryb skupienia">
+        <section className="session__focus" aria-label="Tryb skupienia">
           <p>{lockState === 'on' ? 'Ekran nie zgaśnie, dopóki PULSE jest na wierzchu.' : lockState === 'unsupported' ? 'Ta przeglądarka nie pozwala trzymać ekranu włączonego.' : ''}</p>
           {shortcut ? (
             <a className="btn btn--secondary btn--sm" href={shortcutUrl(shortcut, target ?? 60)}>Uruchom skrót „{shortcut}”</a>
@@ -128,9 +134,9 @@ function LiveSession({ session, onFinished }: { session: Session; onFinished: (i
       )}
 
       {!focus && (
-        <div className="session3__extras">
+        <div className="session__extras">
           {lesson && <button className="row row--action" onClick={() => navigate(`/nauka/${lesson.split('-')[0]}/${lesson}`)}><span className="row__main"><span className="row__title">Otwórz lekcję</span></span><Icon name="chevron" size={18} /></button>}
-          <div className="spread">
+          <div className="session__project">
             <span className="muted small">{project ? <>Projekt: <strong className="text">{project.title}</strong></> : 'Bez projektu — to w porządku.'}</span>
             <button className="btn btn--quiet" onClick={() => setProjOpen(true)}>{project ? 'Zmień' : 'Powiąż'}</button>
           </div>
@@ -138,7 +144,7 @@ function LiveSession({ session, onFinished }: { session: Session; onFinished: (i
             <span className="field__label">Notatka (opcjonalnie)</span>
             <textarea className="textarea" value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} placeholder="Zapisuje się sama." />
           </label>
-          <button className="btn btn--ghost" onClick={() => setDiscardOpen(true)}><Icon name="trash" size={18} /> <span>Odrzuć — timer włączony przez pomyłkę</span></button>
+          <button className="btn btn--ghost session__discard" onClick={() => setDiscardOpen(true)}><Icon name="trash" size={18} /> <span>Odrzuć — timer włączony przez pomyłkę</span></button>
         </div>
       )}
 
@@ -148,6 +154,11 @@ function LiveSession({ session, onFinished }: { session: Session; onFinished: (i
         onConfirm={() => { discardSession(session); navigate('/tworz', { replace: true }); }} />
     </div>
   );
+}
+
+/** Where the needle sits: along the chosen length, or along 90 minutes for an open session. */
+export function sessionProgress(secs: number, targetMinutes: number | null): number {
+  return targetMinutes ? Math.min(1, secs / (targetMinutes * 60)) : Math.min(0.98, secs / (90 * 60));
 }
 
 function Finished({ session }: { session: Session }) {
@@ -160,10 +171,11 @@ function Finished({ session }: { session: Session }) {
   };
   return (
     <div className="screen screen--bare finished">
-      <div className="finished__mark" aria-hidden="true"><Icon name="check" size={34} strokeWidth={2.4} /></div>
+      <div className="finished__deck"><Turntable state="idle" progress={1} label={session.title || 'Creative Workflow'} size={220} /></div>
+      <p className="finished__kicker">Zapisane</p>
       <h1 className="finished__time num">{durationLabel(mins)}</h1>
-      <p className="finished__lead">{mins >= 10 ? 'Zapisane. To się liczy do rytmu tygodnia.' : 'Zapisane. Krótsze niż 10 minut — zostaje w historii, ale nie liczy się do rytmu.'}</p>
-      {covered.length > 0 && <p className="finished__plan">Zaliczony plan: {covered.map((e) => e.title).join(', ')}.</p>}
+      <p className="finished__lead">{mins >= 10 ? 'To się liczy do rytmu tygodnia.' : 'Krótsze niż 10 minut — zostaje w historii, ale nie liczy się do rytmu.'}</p>
+      {covered.length > 0 && <p className="finished__plan"><Icon name="check" size={16} /> Zaliczony plan: {covered.map((e) => e.title).join(', ')}.</p>}
       <Field label="Notatka (opcjonalnie)">
         <textarea className="textarea" value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} placeholder="Jeśli chcesz coś zapamiętać z tej sesji." />
       </Field>

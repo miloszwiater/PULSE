@@ -2,11 +2,12 @@ import { useState } from 'react';
 import type { Profile } from '../../shared/schema';
 import { hhmm, parseHHMM } from '../../shared/time';
 import { useProfile } from '../data/store';
-import { patchProfile } from '../data/actions';
+import { patchProfile, startSession } from '../data/actions';
 import { Button, Chip, Field, IconButton, ScreenHeader, Sheet } from '../ui/kit';
 import { Icon } from '../ui/Icon';
 import { WD_SHORT } from '../ui/format';
 import { toast } from '../ui/toast';
+import { navigate } from '../app/router';
 
 const COMMON_APPS = ['Instagram', 'TikTok', 'YouTube', 'X', 'Facebook', 'Snapchat', 'Reddit', 'Discord', 'Netflix', 'Twitch', 'Gry'];
 
@@ -27,8 +28,14 @@ export function FocusScreen() {
   const toggleApp = (a: string) => patchProfile({ focus_apps: apps.includes(a) ? apps.filter((x) => x !== a) : [...apps, a] });
 
   return (
-    <div className="screen focus">
-      <ScreenHeader title="Skupienie" onBack />
+    <div className="screen focus withhero">
+      <div className="screenhero photo" aria-hidden="true"><img src="/photos/focus.webp" alt="" /></div>
+      <ScreenHeader title="Skupienie" onBack sub="Mniej rozpraszaczy, więcej muzyki — na tyle, na ile pozwala iPhone." />
+      <button className="slab" onClick={() => { startSession({ focus: true }); navigate('/sesja'); }}>
+        <span className="slab__disc" aria-hidden="true" />
+        <span className="slab__text"><span className="slab__title">Sesja ze skupieniem</span><span className="slab__sub">Ekran nie gaśnie{p.focus_shortcut ? `, skrót „${p.focus_shortcut}” pod ręką` : ''}</span></span>
+        <Icon name="play" size={20} fill="currentColor" />
+      </button>
       <div className="honest">
         <Icon name="shield" size={22} />
         <div>

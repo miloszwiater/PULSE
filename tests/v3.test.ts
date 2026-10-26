@@ -176,3 +176,21 @@ describe('academy', () => {
     expect(LESSON_BY_KEY['vocal-warmup'].path).toBe('vocal');
   });
 });
+
+describe('academy self-check', () => {
+  it('asks about every term the lesson defines, with the lesson\'s own definition as the right answer', async () => {
+    const { lessonQuiz } = await import('../shared/domain/academy');
+    for (const p of PATHS) for (const l of p.lessons) {
+      const q = lessonQuiz(l.key);
+      if (!l.terms || l.terms.length < 2) { expect(q).toEqual([]); continue; }
+      expect(q).toHaveLength(l.terms.length);
+      q.forEach((x, i) => {
+        expect(x.term).toBe(l.terms![i][0]);
+        expect(x.options[x.answer]).toBe(l.terms![i][1]);
+        expect(new Set(x.options).size).toBe(x.options.length);
+        expect(x.options.length).toBe(3);
+      });
+      expect(lessonQuiz(l.key)).toEqual(q);
+    }
+  });
+});

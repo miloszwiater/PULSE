@@ -11,9 +11,8 @@ import { useStore } from '../data/store';
 import { useClock } from '../data/clock';
 import { activeSession, startSession } from '../data/actions';
 import { navigate } from '../app/router';
-import { Button, IconButton } from '../ui/kit';
-import { NightScene } from '../ui/NightScene';
-import { useScene } from '../ui/useScene';
+import { IconButton } from '../ui/kit';
+import { HeroBackdrop } from '../ui/Hero';
 import { Icon } from '../ui/Icon';
 import { RhythmRing } from '../ui/Rhythm';
 import { Wordmark } from '../ui/Wordmark';
@@ -41,7 +40,6 @@ export function TodayScreen() {
   const bookNudge = useMemo(() => bookNudges(snap, clock.today, clock.nowMs).find((n) => n.kind === 'overdue'), [snap, clock.today, clock.nowMs]);
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [message, setMessage] = useState('');
-  const scene = useScene(clock.nowMin);
   const pending = snap.proposals.filter((p) => p.status === 'pending');
   const running = activeSession();
   const animate = !ringPlayed;
@@ -66,10 +64,12 @@ export function TodayScreen() {
 
   const ask = (text: string) => navigate(`/towarzysz?q=${encodeURIComponent(text)}`);
 
+  const notices = conflicts.length > 0 || pending.length > 0 || needsSetup || !!bookNudge;
+
   return (
     <div className="today">
       <section className="today__hero" aria-labelledby="today-h">
-        <div className="today__scene" aria-hidden="true"><NightScene {...scene} /></div>
+        <HeroBackdrop nowMin={clock.nowMin} />
         <header className="today__top">
           <Wordmark size="md" />
           <div className="today__actions">
@@ -77,22 +77,45 @@ export function TodayScreen() {
             <IconButton icon="chat" label="Towarzysz" onClick={() => navigate('/towarzysz')} />
           </div>
         </header>
-        <p className="today__date">{longDate(clock.today)}</p>
-        <h1 className="today__headline" id="today-h">{headline}</h1>
-        <p className="today__detail">{detail}</p>
+        <div className="today__copy">
+          <p className="today__date">{longDate(clock.today)}</p>
+          <h1 className="today__headline" id="today-h">{headline}</h1>
+          <p className="today__detail">{detail}</p>
+        </div>
       </section>
 
-      <div className="today__ring">
-        <RhythmRing days={days} planned={planned} today={clock.today} animate={animate}>
-          <span className="rr__count num">{week.sessionCount}<span className="rr__of">/{week.adjustedTarget}</span></span>
-          <span className="rr__caption">{plural(week.sessionCount, 'sesja', 'sesje', 'sesji')} w tym tygodniu</span>
-          <span className="rr__minutes num">{durationLabel(week.minutes)}</span>
-        </RhythmRing>
-        <p className="today__ring-legend">Pierścień to cztery tygodnie — na zewnątrz ten, od poniedziałku u góry.</p>
-      </div>
-
       <div className="today__body">
-        {(conflicts.length > 0 || pending.length > 0 || needsSetup || bookNudge) && (
+        <section className="now" aria-label="Teraz">
+          {!running && next && (
+            <button className="now__plan" onClick={() => navigate(`/plan?d=${clock.today}`)}>
+              <span className="now__time num">{hhmm(next.start_min)}</span>
+              <span className="now__what">
+                <span className="now__title">{next.title}</span>
+                <span className="now__sub">{durationLabel(next.end_min - next.start_min)}{next.priority === 3 ? ', opcjonalnie' : ''}</span>
+              </span>
+              <Icon name="chevron" size={18} />
+            </button>
+          )}
+          {running ? (
+            <button className="slab is-live" onClick={() => navigate('/sesja')}>
+              <span className="slab__disc" aria-hidden="true" />
+              <span className="slab__text"><span className="slab__title">Wróć do sesji</span><span className="slab__sub">Czas biegnie</span></span>
+              <Icon name="chevron" size={20} />
+            </button>
+          ) : (
+            <button className="slab" onClick={() => { if (next) startSession({ event: next }); else startSession({ minutes: ret.active ? 20 : null }); navigate('/sesja'); }}>
+              <span className="slab__disc" aria-hidden="true" />
+              <span className="slab__text">
+                <span className="slab__title">{next?.lesson_key ? 'Zacznij naukę' : ret.active ? 'Zacznij 20 minut' : next ? 'Zacznij teraz' : 'Zacznij sesję'}</span>
+                <span className="slab__sub">{next ? `${next.title}, ${durationLabel(next.end_min - next.start_min)}` : 'Creative Workflow, bez limitu'}</span>
+              </span>
+              <Icon name="play" size={20} fill="currentColor" />
+            </button>
+          )}
+          {!running && <button className="now__more" onClick={() => navigate('/tworz')}>Wybierz długość albo swój workflow</button>}
+        </section>
+
+        {notices && (
           <div className="notice-list">
             {needsSetup && (
               <button className="notice notice--violet" onClick={() => navigate('/plan?setup=1')}>
@@ -125,33 +148,23 @@ export function TodayScreen() {
           </div>
         )}
 
-        <section className="now" aria-label="Teraz">
-          {running ? (
-            <Button variant="primary" size="lg" icon="play" block onClick={() => navigate('/sesja')}>Wróć do trwającej sesji</Button>
-          ) : next ? (
-            <>
-              <button className="now__plan" onClick={() => navigate(`/plan?d=${clock.today}`)}>
-                <span className="now__time num">{hhmm(next.start_min)}</span>
-                <span className="now__what">
-                  <span className="now__title">{next.title}</span>
-                  <span className="now__sub">{durationLabel(next.end_min - next.start_min)}{next.priority === 3 ? ' · opcjonalnie' : ''}</span>
-                </span>
-                <Icon name="chevron" size={18} />
-              </button>
-              <Button variant="primary" size="lg" icon="play" block onClick={() => { startSession({ event: next }); navigate('/sesja'); }}>
-                {next.lesson_key ? 'Zacznij naukę' : 'Zacznij teraz'}
-              </Button>
-            </>
-          ) : (
-            <Button variant="primary" size="lg" icon="play" block onClick={() => { startSession({ minutes: ret.active ? 20 : null }); navigate('/sesja'); }}>
-              {ret.active ? 'Zacznij 20 minut' : 'Zacznij sesję'}
-            </Button>
-          )}
-          {!running && <button className="now__more" onClick={() => navigate('/tworz')}>Wybierz długość albo swój workflow</button>}
+        <section className="today__rhythm" aria-labelledby="rhythm-h">
+          <div className="block__head">
+            <h2 className="block__title" id="rhythm-h">Rytm</h2>
+            <button className="btn btn--quiet" onClick={() => navigate('/ty/rytm')}>Historia</button>
+          </div>
+          <div className="today__ring">
+            <RhythmRing days={days} planned={planned} today={clock.today} animate={animate} size={232}>
+              <span className="rr__count num">{week.sessionCount}<span className="rr__of">/{week.adjustedTarget}</span></span>
+              <span className="rr__caption">{plural(week.sessionCount, 'sesja', 'sesje', 'sesji')} w tym tygodniu</span>
+              <span className="rr__minutes num">{durationLabel(week.minutes)}</span>
+            </RhythmRing>
+            <p className="today__ring-legend">Cztery tygodnie jak rowki płyty. Zewnętrzny to ten tydzień, od poniedziałku u góry; jaśniej — więcej muzyki.</p>
+          </div>
         </section>
 
         <section className="talk" aria-labelledby="talk-h">
-          <h2 className="talk__h" id="talk-h">Coś się zmieniło?</h2>
+          <h2 className="block__title" id="talk-h">Coś się zmieniło?</h2>
           <form className="talk__field" onSubmit={(e) => { e.preventDefault(); if (message.trim()) ask(message.trim()); }}>
             <input className="input" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Napisz zwyczajnie, np. „jutro pracuję 12 h”" maxLength={600} aria-label="Wiadomość do Towarzysza" enterKeyHint="send" />
             <IconButton icon="send" label="Wyślij" type="submit" disabled={!message.trim()} />
@@ -162,7 +175,7 @@ export function TodayScreen() {
         </section>
 
         <section className="today__energy" aria-labelledby="energy-h">
-          <h2 className="section__title" id="energy-h">Jak się dziś czujesz?</h2>
+          <h2 className="block__title" id="energy-h">Jak się dziś czujesz?</h2>
           <CheckIn />
         </section>
 

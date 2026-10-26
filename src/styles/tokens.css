@@ -1,82 +1,88 @@
-/* PULSE design tokens — see DESIGN.md for rationale. */
+/* PULSE v4 "Lakier" — design tokens. Rationale in DESIGN.md.
+   Lacquer black and graphite like a record and the gear around it; ultraviolet only for what is live
+   or actionable; VU amber for learning, protected days and running past an intention. */
 :root {
   color-scheme: dark;
 
-  /* Surfaces: midnight blue-black, never neutral grey */
-  --ink-0: #07061a;
-  --ink-1: #0f0d24;
-  --ink-2: #161334;
-  --ink-3: #201c46;
-  --ink-4: #2c275a;
-  --line: #221e48;
-  --line-strong: #362f6e;
+  /* Surfaces — lacquer → graphite. Names kept from v1–v3 so every screen inherits the palette. */
+  --ink-0: #09080c;   /* lacquer: app background */
+  --ink-1: #121116;   /* graphite: sheets, raised rows */
+  --ink-2: #18171e;   /* controls at rest */
+  --ink-3: #211f28;   /* controls, toasts */
+  --ink-4: #2c2935;   /* pressed, thumbs */
+  --line: #1f1d26;    /* groove: hairlines between rows */
+  --line-strong: #302d3a;
 
-  /* Text */
-  --text: #f2efff;
-  --text-2: #aca6d4;
-  --text-3: #726c9e;
-  --text-inv: #0a0d18;
+  /* Text — label paper, never pure white */
+  --text: #eeeaf4;
+  --text-2: #aaa4b8;
+  --text-3: #7b7689;  /* ≥ 4.5:1 on lacquer */
+  --text-inv: #0c0b10;
 
-  /* Brand */
-  --violet: #8b5cff;
-  --violet-hi: #a98bff;
-  --violet-press: #6d3cf0;
-  --violet-wash: rgba(142, 107, 255, 0.13);
-  --violet-line: rgba(142, 107, 255, 0.42);
-  --violet-deep: #5b2be0;
-  --grad-primary: linear-gradient(180deg, #9468ff 0%, #8150fa 100%);
-  --grad-card: linear-gradient(180deg, rgba(139, 92, 255, 0.07) 0%, rgba(139, 92, 255, 0) 60%);
-  --glow-sm: 0 0 0 1px rgba(139, 92, 255, 0.45), 0 6px 22px -8px rgba(139, 92, 255, 0.7);
-  --blue: #4cb6ff;
-  --sand: #e8c39a;
-  --sand-wash: rgba(232, 195, 154, 0.12);
-  --groove: #1c1940;
-  --groove-hi: #2a2560;
+  /* Ultraviolet — live, action, progress */
+  --violet: #8b6cff;
+  --violet-hi: #b9a6ff;
+  --violet-press: #7254f0;
+  --violet-deep: #3a2a86;
+  --violet-wash: rgba(139, 108, 255, 0.12);
+  --violet-line: rgba(139, 108, 255, 0.4);
+  --grad-primary: linear-gradient(180deg, #9478ff 0%, #8565fb 100%);
 
-  /* Tones for workflows, paths and project sleeves */
-  --tone-0: #8b5cff;
-  --tone-1: #e8c39a;
-  --tone-2: #4cb6ff;
-  --tone-3: #e58bb7;
-  --tone-4: #49d5a4;
-  --tone-5: #f2b65a;
-  --tone-6: #ff8a6b;
-  --tone-7: #a9b1e6;
-  --blue-wash: rgba(76, 182, 255, 0.12);
+  /* VU amber — learning, protected days, past the intention */
+  --vu: #e9b872;
+  --vu-wash: rgba(233, 184, 114, 0.12);
+  --sand: var(--vu);
+  --sand-wash: var(--vu-wash);
+
+  --blue: #84b6ff;
+  --blue-wash: rgba(132, 182, 255, 0.12);
+  --groove: #1b1a22;
+  --groove-hi: #2a2734;
+
+  /* Tones for workflows, paths and project sleeves (muted, printed-ink feel) */
+  --tone-0: #8b6cff;
+  --tone-1: #e9b872;
+  --tone-2: #84b6ff;
+  --tone-3: #df8fb4;
+  --tone-4: #6fd1a8;
+  --tone-5: #f0a35e;
+  --tone-6: #ef7f6b;
+  --tone-7: #b3b4d6;
 
   /* Semantic */
-  --ok: #49d5a4;
-  --ok-wash: rgba(73, 213, 164, 0.12);
-  --warn: #ffb648;
-  --warn-wash: rgba(255, 182, 72, 0.12);
-  --danger: #ff5d73;
-  --danger-wash: rgba(255, 93, 115, 0.12);
+  --ok: #6fd1a8;
+  --ok-wash: rgba(111, 209, 168, 0.12);
+  --warn: #f0b45e;
+  --warn-wash: rgba(240, 180, 94, 0.12);
+  --danger: #f2687c;
+  --danger-wash: rgba(242, 104, 124, 0.12);
 
-  /* Life categories (calendar) */
-  --k-work: #7b86ad;
-  --k-commute: #59628a;
+  /* Life categories (calendar): work is graphite — life, not the enemy */
+  --k-work: #6f768f;
+  --k-commute: #545a70;
   --k-music: var(--violet);
-  --k-training: #b89cff;
+  --k-training: var(--vu);
   --k-reading: var(--blue);
-  --k-promo: #f2b65a;
-  --k-private: #e58bb7;
-  --k-relationship: #e58bb7;
-  --k-sport: #5fcf95;
-  --k-rest: #5b6bd6;
-  --k-other: #8a90a8;
+  --k-promo: #f0a35e;
+  --k-private: #df8fb4;
+  --k-relationship: #df8fb4;
+  --k-sport: #6fd1a8;
+  --k-rest: #6a6fb8;
+  --k-other: #8a8799;
 
-  /* Type */
-  --font-display: 'Unbounded Variable', 'Unbounded', system-ui, sans-serif;
+  /* Type: a record-sleeve didone for display, a quiet grotesque for everything you read and touch */
+  --font-display: 'Bodoni Moda Variable', 'Bodoni Moda', 'Didot', 'Bodoni 72', Georgia, serif;
   --font-text: 'Onest Variable', 'Onest', system-ui, -apple-system, sans-serif;
-  --fs-xs: 0.75rem;   /* 12 */
-  --fs-sm: 0.8125rem; /* 13 */
-  --fs-base: 1rem;    /* 16 */
-  --fs-md: 1.0625rem; /* 17 */
-  --fs-lg: 1.25rem;   /* 20 */
-  --fs-xl: 1.5625rem; /* 25 */
-  --fs-2xl: 1.9375rem;/* 31 */
-  --fs-3xl: 2.75rem;  /* 44 */
-  --lh-tight: 1.15;
+  --fs-xs: 0.75rem;    /* 12 */
+  --fs-sm: 0.8125rem;  /* 13 */
+  --fs-base: 1rem;     /* 16 */
+  --fs-md: 1.0625rem;  /* 17 */
+  --fs-lg: 1.3125rem;  /* 21 */
+  --fs-xl: 1.75rem;    /* 28 — screen titles (display) */
+  --fs-2xl: 2.25rem;   /* 36 */
+  --fs-3xl: 2.75rem;   /* 44 — hero */
+  --fs-4xl: 4rem;      /* 64 — timer */
+  --lh-tight: 1.08;
   --lh-text: 1.5;
 
   /* Space (4-based) */
@@ -91,32 +97,35 @@
   --s-12: 48px;
   --gutter: 20px;
 
-  /* Radius — hierarchy, not one value everywhere */
-  --r-xs: 6px;
-  --r-sm: 10px;
+  /* Radius by hierarchy: tags/calendar 4 · controls 12 · featured 18 · sheets 26 · round */
+  --r-xs: 4px;
+  --r-sm: 12px;
   --r-md: 14px;
-  --r-lg: 22px;
-  --r-xl: 28px;
+  --r-lg: 18px;
+  --r-xl: 26px;
   --r-pill: 999px;
 
-  /* Elevation: light from above, no grey drop shadows */
-  --edge: inset 0 1px 0 rgba(255, 255, 255, 0.045);
-  --lift: 0 18px 40px -18px rgba(0, 0, 0, 0.85);
-  --glow-violet: 0 0 0 1px var(--violet-line), 0 10px 30px -12px rgba(142, 107, 255, 0.55);
+  /* Depth: one light source from above; dark shadows only for floating layers */
+  --edge: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --lift: 0 22px 48px -20px rgba(0, 0, 0, 0.9);
+  --glow-violet: 0 0 0 1px var(--violet-line), 0 12px 32px -14px rgba(139, 108, 255, 0.6);
 
-  /* Motion */
+  /* Motion tokens */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
-  --t-fast: 140ms;
-  --t-base: 220ms;
-  --t-slow: 420ms;
+  --t-fast: 120ms;   /* press feedback */
+  --t-base: 220ms;   /* state change */
+  --t-slow: 420ms;   /* enter, expand */
+  --t-sheet: 460ms;
+  --rpm: 1.8s;       /* one turn at 33⅓ rpm — the platter's real speed */
 
   /* Layout */
-  --tabbar-h: 64px;
+  --tabbar-h: 62px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --touch: 44px;
+  --content-max: 640px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -124,5 +133,6 @@
     --t-fast: 0ms;
     --t-base: 0ms;
     --t-slow: 0ms;
+    --t-sheet: 0ms;
   }
 }

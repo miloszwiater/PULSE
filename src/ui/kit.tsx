@@ -100,7 +100,8 @@ export function Sheet({ open, onClose, title, children, footer, tall }: { open: 
 
 export function Segmented<T extends string>({ value, options, onChange, label }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; label: string }) {
   return (
-    <div className="segmented" role="tablist" aria-label={label}>
+    <div className="segmented" role="tablist" aria-label={label}
+      style={{ '--n': options.length, '--i': Math.max(0, options.findIndex((o) => o.value === value)) } as React.CSSProperties}>
       {options.map((o) => (
         <button key={o.value} role="tab" aria-selected={value === o.value} className={`segmented__opt${value === o.value ? ' is-on' : ''}`} onClick={() => onChange(o.value)}>
           {o.label}

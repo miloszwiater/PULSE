@@ -70,21 +70,21 @@ export function PlanScreen() {
       </div>
 
       {needsSetup && (
-        <button className="alert-row alert-row--violet" onClick={() => setSetupOpen(true)}>
+        <button className="notice notice--violet" onClick={() => setSetupOpen(true)}>
           <Icon name="sparkle" size={20} />
           <span><strong>Plan jest pusty.</strong> Ułóż nowy harmonogram: praca, dostępność, rytm tworzenia i opcjonalna nauka.</span>
           <Icon name="chevron" size={18} />
         </button>
       )}
       {conflicts.length > 0 && (
-        <button className="alert-row" onClick={() => follow.setProposal(resolveConflicts(snap, clock, conflicts))}>
+        <button className="notice" onClick={() => follow.setProposal(resolveConflicts(snap, clock, conflicts))}>
           <Icon name="info" size={20} />
           <span><strong>{conflicts.length} {plural(conflicts.length, 'konflikt', 'konflikty', 'konfliktów')}.</strong> {conflicts[0].event.title}, {dayLabel(conflicts[0].event.date, clock.today).toLowerCase()}: {conflicts[0].reason}</span>
           <Icon name="chevron" size={18} />
         </button>
       )}
       {pendingCount > 0 && (
-        <button className="alert-row alert-row--violet" onClick={() => follow.setProposal(snap.proposals.find((p) => p.status === 'pending')!)}>
+        <button className="notice notice--violet" onClick={() => follow.setProposal(snap.proposals.find((p) => p.status === 'pending')!)}>
           <Icon name="sparkle" size={20} />
           <span><strong>{pendingCount} {plural(pendingCount, 'propozycja czeka', 'propozycje czekają', 'propozycji czeka')}</strong> na decyzję.</span>
           <Icon name="chevron" size={18} />

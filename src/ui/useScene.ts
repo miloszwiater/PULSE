@@ -7,6 +7,7 @@ export function useScene(nowMin: number) {
   const seed = useStore((s) => s.user?.id ?? 'pulse');
   const photo = useHeroPhoto();
   return {
+    mode: scene,
     seed,
     minute: scene === 'night' || scene === 'rain' ? 23 * 60 : nowMin,
     rain: scene === 'rain',

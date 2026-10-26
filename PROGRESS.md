@@ -1,6 +1,6 @@
 # PULSE — stan prac
 
-Ostatnia aktualizacja: 26.10.2026 (redesign v4 „Lakier”).
+Ostatnia aktualizacja: 26.10.2026 (redesign v4 „Lakier” — wdrożony).
 
 ## Podsumowanie
 v3 zmienia filozofię: PULSE pilnuje regularności, nie kreatywności; bez terminu 365 dni, bez kariery i promocji w UI. Główna funkcja to Creative Workflow (start jednym dotknięciem, własne workflow, zapis bez formularza). Doszły: Akademia (5 ścieżek, 29 lekcji ze źródłami), książki z nowymi statusami, projekty z utworami, tekstami i okładkami, ekran Skupienia (uczciwie o iOS), Rytm (przerwy i powroty), Towarzysz rozumiejący zwykłe wiadomości bez AI. Nowy design „płyta”. **Wdrożona:** https://pulse.milosz-wiater.workers.dev (Worker `pulse`, D1 `pulse`). Gałąź `claude/pulse-pwa-app-5avvc0`. Na koncie działa niezależna aplikacja `falling-cell-91e6` (+ D1 `zero_push_notifications`) — nie dotykać.
@@ -34,7 +34,7 @@ Nowa identyfikacja całej aplikacji (DESIGN.md → Wersja 4): lakierowana czerń
 - **Layout:** stare `screens.css`/`v3.css` (warstwy po trzech redesignach) usunięte i zastąpione plikami per obszar; naprawione: przycisk blokowy z długą etykietą wypychał lekcję poza ekran przy 320 px, poświata decku powodowała poziome przewijanie, bloki w planie nie miały kolorów kategorii, pigułka sesji dublowała deck na Twórz.
 - **PWA:** zdjęcia w precache (offline); nowa wersja, która zainstalowała się w tle, jest stosowana przy następnym uruchomieniu; sprawdzanie aktualizacji przy każdym powrocie aplikacji na pierwszy plan (iOS rzadko zamyka aplikacje z ekranu początkowego).
 - **Weryfikacja:** zrzuty wszystkich ekranów i stanów (`scripts/qa-v4.mjs`, `qa-session.mjs`, `qa-library.mjs`) na 320/375/390/430 px, brak błędów konsoli.
-- **Nie wdrożone:** w tej sesji brak tokena Cloudflare. Wdrożenie: `CLOUDFLARE_API_TOKEN=… npm run db:migrate:remote && CLOUDFLARE_API_TOKEN=… npm run deploy` (migracja 0006 z Biblioteki też czeka). Bez zmian w danych — redesign nie dotyka bazy.
+- **Wdrożone 26.10.2026:** migracja 0006 zastosowana na zdalnym D1 (najpierw eksport bazy poza repozytorium), Worker `pulse` wdrożony (wersja `cf5b674a`), https://pulse.milosz-wiater.workers.dev serwi ten sam pakiet co lokalny build, zdjęcia i `sw.js` z `max-age=0, must-revalidate` (cache PWA nie blokuje aktualizacji), dane użytkownika bez zmian (1 konto, 4 sesje, 1 wydarzenie).
 - **Nie przetestowano:** prawdziwy Safari/iOS (Chromium z viewportem iPhone), wydajność animacji na starszym iPhonie.
 
 ## Biblioteka Rozwoju Artystycznego (26.10.2026)
@@ -50,7 +50,7 @@ Nowa identyfikacja całej aplikacji (DESIGN.md → Wersja 4): lakierowana czerń
 - Rekomendacje lokalne to heurystyka (wagi umiejętności + profil + oceny + różnicowanie), nie „rozumienie literatury”. Jakość doradztwa AI nie była sprawdzana na prawdziwym kluczu API.
 - Brak przeglądarki Safari/iOS; testy na Chromium z viewportem iPhone 13.
 
-**Wdrożenie.** W tej sesji nie było tokena Cloudflare (wrangler nie jest zalogowany), więc zmiana **nie jest wdrożona**. Aby ją wdrożyć: `CLOUDFLARE_API_TOKEN=… npm run db:migrate:remote` (dodaje 5 kolumn do `books`, addytywnie) a potem `CLOUDFLARE_API_TOKEN=… npm run deploy`. Kolejność ma znaczenie: najpierw migracja, potem Worker. Dane zapisane przed zmianą nie wymagają żadnej konwersji.
+**Wdrożenie.** Wdrożone razem z redesignem v4 (patrz wyżej). Dla porządku — procedura: `CLOUDFLARE_API_TOKEN=… npm run db:migrate:remote` (dodaje 5 kolumn do `books`, addytywnie) a potem `CLOUDFLARE_API_TOKEN=… npm run deploy`. Kolejność ma znaczenie: najpierw migracja, potem Worker. Dane zapisane przed zmianą nie wymagają żadnej konwersji.
 
 ## Testy
 - `npm test` — 136 testów (+ quiz Akademii). Wcześniej 135 testów (83 poprzednich + 52 dla Biblioteki: integralność katalogu, brak zadań pisarskich, zgodność ze starymi kluczami, statusy i dane sprzed zmiany, duplikaty, różnicowanie i uczenie się z ocen, wyszukiwanie, terminy, bloki czytania, Towarzysz). Poprzednio: 83 testy (w tym nowe: intencje Towarzysza na przykładach z briefu, zmiana 12 h → przełożenie muzyki, choroba, tryb powrotu, długa sesja, bloki nauki, plan miesiąca, „czas był” vs „ciężki dzień”, kompletność Akademii i brak sztucznych zadań, rekomendacje książek, brak tekstów w kontekście AI).
